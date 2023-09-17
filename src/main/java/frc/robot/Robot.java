@@ -11,7 +11,6 @@ import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -20,10 +19,10 @@ import edu.wpi.first.wpilibj.motorcontrol.PWMSparkMax;
  * directory.
  */
 public class Robot extends TimedRobot {
-  private CANSparkMax m_leftDrive = new CANSparkMax(1, MotorType.kBrushless);
-  private CANSparkMax m_rightDrive = new CANSparkMax(2, MotorType.kBrushless);
-  private final DifferentialDrive m_robotDrive = new DifferentialDrive(m_leftDrive, m_rightDrive);
-  private final XboxController m_controller = new XboxController(0);
+  private CANSparkMax rotateMotor = new CANSparkMax(1, MotorType.kBrushless); // rotation
+  private CANSparkMax translateMotor = new CANSparkMax(2, MotorType.kBrushless);
+  // private final DifferentialDrive m_robotDrive = new DifferentialDrive(m_leftDrive, m_rightDrive);
+  // private final XboxController m_controller = new XboxController(0);
   private final Timer m_timer = new Timer();
 
 
@@ -36,7 +35,7 @@ public class Robot extends TimedRobot {
     // We need to invert one side of the drivetrain so that positive voltages
     // result in both sides moving forward. Depending on how your robot's
     // gearbox is constructed, you might have to invert the left side instead.
-    m_rightDrive.setInverted(true);
+    // m_rightDrive.setInverted(true);
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -55,7 +54,10 @@ public class Robot extends TimedRobot {
     // } else {
     //   m_robotDrive.stopMotor(); // stop robot
     // }
-    m_robotDrive.arcadeDrive(0.30, 0.0);
+
+    // m_robotDrive.arcadeDrive(0.30, 0.0);
+    rotateMotor.set(0.1);
+    translateMotor.set(0.1);
   }
 
   /** This function is called once each time the robot enters teleoperated mode. */
@@ -65,7 +67,7 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
-    m_robotDrive.arcadeDrive(-m_controller.getLeftY(), -m_controller.getRightX());
+    // m_robotDrive.arcadeDrive(-m_controller.getLeftY(), -m_controller.getRightX());
   }
 
   /** This function is called once each time the robot enters test mode. */
