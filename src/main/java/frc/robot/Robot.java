@@ -7,6 +7,7 @@ package frc.robot;
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
+import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.XboxController;
@@ -19,8 +20,8 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
  * directory.
  */
 public class Robot extends TimedRobot {
-  private CANSparkMax rotateMotor = new CANSparkMax(1, MotorType.kBrushless); // rotation
-  private CANSparkMax translateMotor = new CANSparkMax(2, MotorType.kBrushless);
+  private CANSparkMax rotateMotor = new CANSparkMax(6, MotorType.kBrushless); // rotation
+  private CANSparkMax translateMotor = new CANSparkMax(5, MotorType.kBrushless);
   // private final DifferentialDrive m_robotDrive = new DifferentialDrive(m_leftDrive, m_rightDrive);
   // private final XboxController m_controller = new XboxController(0);
   private final Timer m_timer = new Timer();
@@ -36,6 +37,7 @@ public class Robot extends TimedRobot {
     // result in both sides moving forward. Depending on how your robot's
     // gearbox is constructed, you might have to invert the left side instead.
     // m_rightDrive.setInverted(true);
+    CameraServer.startAutomaticCapture();
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
