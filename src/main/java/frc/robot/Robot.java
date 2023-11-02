@@ -8,10 +8,12 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
 import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj2.command.PrintCommand;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -22,10 +24,12 @@ import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 public class Robot extends TimedRobot {
   private CANSparkMax rotateMotor = new CANSparkMax(6, MotorType.kBrushless); // rotation
   private CANSparkMax translateMotor = new CANSparkMax(5, MotorType.kBrushless);
+  // private final SwerveDriveKinematics m_robotDrive = new SwerveDriveKinematics(null)
   // private final DifferentialDrive m_robotDrive = new DifferentialDrive(m_leftDrive, m_rightDrive);
   // private final XboxController m_controller = new XboxController(0);
+  private final PS4Controller PS4joystick = new PS4Controller(0); // 0 is the USB Port to be used as indicated on the Driver Station
+  
   private final Timer m_timer = new Timer();
-
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -37,7 +41,7 @@ public class Robot extends TimedRobot {
     // result in both sides moving forward. Depending on how your robot's
     // gearbox is constructed, you might have to invert the left side instead.
     // m_rightDrive.setInverted(true);
-    CameraServer.startAutomaticCapture();
+    // CameraServer.startAutomaticCapture();
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -58,8 +62,8 @@ public class Robot extends TimedRobot {
     // }
 
     // m_robotDrive.arcadeDrive(0.30, 0.0);
-    rotateMotor.set(0.1);
-    translateMotor.set(0.1);
+    // rotateMotor.set(0.1);
+    // translateMotor.set(0.1);
   }
 
   /** This function is called once each time the robot enters teleoperated mode. */
@@ -69,7 +73,10 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
-    // m_robotDrive.arcadeDrive(-m_controller.getLeftY(), -m_controller.getRightX());
+    // m_robotDrive.arcadeDrive(-PS4joystick.getLeftY(), -PS4joystick.getRightX());
+    // System.out.printf("%.2f", PS4joystick.getLeftY());
+    rotateMotor.set(PS4joystick.getLeftY());
+    // translateMotor.set(0.1);
   }
 
   /** This function is called once each time the robot enters test mode. */
