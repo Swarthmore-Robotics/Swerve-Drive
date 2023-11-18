@@ -22,8 +22,15 @@ import edu.wpi.first.wpilibj2.command.PrintCommand;
  * directory.
  */
 public class Robot extends TimedRobot {
-  private CANSparkMax rotateMotor = new CANSparkMax(6, MotorType.kBrushless); // rotation
-  private CANSparkMax translateMotor = new CANSparkMax(5, MotorType.kBrushless);
+  private CANSparkMax translateMotor1 = new CANSparkMax(2, MotorType.kBrushless); // rotation - evens
+  private CANSparkMax rotateMotor2 = new CANSparkMax(1, MotorType.kBrushless); // translation - odds
+  private CANSparkMax translateMotor3 = new CANSparkMax(4, MotorType.kBrushless);
+  private CANSparkMax rotateMotor4 = new CANSparkMax(3, MotorType.kBrushless); 
+  private CANSparkMax translateMotor5 = new CANSparkMax(6, MotorType.kBrushless); 
+  private CANSparkMax rotateMotor6 = new CANSparkMax(5, MotorType.kBrushless);
+  private CANSparkMax translateMotor7 = new CANSparkMax(8, MotorType.kBrushless);
+  private CANSparkMax rotateMotor8 = new CANSparkMax(7, MotorType.kBrushless); 
+
   // private final SwerveDriveKinematics m_robotDrive = new SwerveDriveKinematics(null)
   // private final DifferentialDrive m_robotDrive = new DifferentialDrive(m_leftDrive, m_rightDrive);
   // private final XboxController m_controller = new XboxController(0);
@@ -75,8 +82,15 @@ public class Robot extends TimedRobot {
   public void teleopPeriodic() {
     // m_robotDrive.arcadeDrive(-PS4joystick.getLeftY(), -PS4joystick.getRightX());
     // System.out.printf("%.2f", PS4joystick.getLeftY());
-    rotateMotor.set(PS4joystick.getLeftY());
-    // translateMotor.set(0.1);
+    translateMotor1.set(PS4joystick.getLeftX());
+    translateMotor3.set(PS4joystick.getLeftX());
+    translateMotor5.set(PS4joystick.getLeftX());
+    translateMotor7.set(PS4joystick.getLeftX());
+
+    rotateMotor2.set(PS4joystick.getRightX());
+    rotateMotor4.set(PS4joystick.getRightX());
+    rotateMotor6.set(PS4joystick.getRightX());
+    rotateMotor8.set(PS4joystick.getRightX());
   }
 
   /** This function is called once each time the robot enters test mode. */
