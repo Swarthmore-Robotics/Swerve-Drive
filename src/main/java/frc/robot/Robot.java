@@ -8,12 +8,12 @@ import com.revrobotics.CANSparkMax;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 
 import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.PS4Controller;
-import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj2.command.PrintCommand;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
+import com.ctre.phoenix.sensors.CANCoder;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -31,12 +31,19 @@ public class Robot extends TimedRobot {
   private CANSparkMax translateMotor7 = new CANSparkMax(8, MotorType.kBrushless);
   private CANSparkMax rotateMotor8 = new CANSparkMax(7, MotorType.kBrushless); 
 
-  // private final SwerveDriveKinematics m_robotDrive = new SwerveDriveKinematics(null)
-  // private final DifferentialDrive m_robotDrive = new DifferentialDrive(m_leftDrive, m_rightDrive);
-  // private final XboxController m_controller = new XboxController(0);
+  private CANCoder coder1 = new CANCoder(1);
+
   private final PS4Controller PS4joystick = new PS4Controller(0); // 0 is the USB Port to be used as indicated on the Driver Station
   
   private final Timer m_timer = new Timer();
+  private double filteredJoystickLeftY;
+  private double filteredJoystickLeftX;
+  private double filteredJoystickRightY;
+  private double filteredJoystickRightX;
+
+  private final double MAX_LINEAR_VELOCITY = 0.3;
+  private final double MAX_ANGULAR_VELOCITY = 0.5;
+
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -77,20 +84,62 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopInit() {}
 
+  private double clamp(double raw, double min, double max){
+    return Math.max(min, Math.min(max, raw));
+  }
+
+  private double highpassFilter(double rawInput){
+    if(Math.abs(rawInput) < 0.1){
+      return 0.0;
+    }else{
+      return rawInput;
+    }
+  }
+
+  private double filterJoystick(double rawInput, boolean linear){
+    double filtered = highpassFilter(rawInput);
+    if(linear){
+      filtered *= MAX_LINEAR_VELOCITY;
+    }else{
+      filtered *= MAX_ANGULAR_VELOCITY;
+    }
+    return filtered;
+  }
+
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
     // m_robotDrive.arcadeDrive(-PS4joystick.getLeftY(), -PS4joystick.getRightX());
-    // System.out.printf("%.2f", PS4joystick.getLeftY());
-    translateMotor1.set(PS4joystick.getLeftX());
-    translateMotor3.set(PS4joystick.getLeftX());
-    translateMotor5.set(PS4joystick.getLeftX());
-    translateMotor7.set(PS4joystick.getLeftX());
+    //System.out.printf("Left Joystick Y: %.2f", PS4joystick.getLeftY());
+    //System.out.println("example");
+    filteredJoystickLeftY = filterJoystick(PS4joystick.getLeftY(), true);
+    filteredJoystickLeftX = filterJoystick(PS4joystick.getLeftX(), true);
+    filteredJoystickRightY = filterJoystick(PS4joystick.getRightY(), true);
+    filteredJoystickRightX = filterJoystick(PS4joystick.getRightX(), false);
 
-    rotateMotor2.set(PS4joystick.getRightX());
-    rotateMotor4.set(PS4joystick.getRightX());
-    rotateMotor6.set(PS4joystick.getRightX());
-    rotateMotor8.set(PS4joystick.getRightX());
+    SmartDashboard.putNumber("Joystick Left Y", filteredJoystickLeftY);
+    SmartDashboard.putNumber("Joystick Left X", filteredJoystickLeftX);
+    SmartDashboard.putNumber("Joystick Right Y", filteredJoystickRightY);
+    SmartDashboard.putNumber("Joystick Right X", filteredJoystickRightX);
+
+    double cancodervalue = coder1.getPosition();
+
+    SmartDashboard.putNumber("CANCODER 1", cancodervalue);
+
+
+    translateMotor1.set(filteredJoystickLeftX);
+    translateMotor3.set(filteredJoystickLeftX);
+    translateMotor5.set(filteredJoystickLeftX);
+    translateMotor7.set(filteredJoystickLeftX);
+
+    rotateMotor2.set(filteredJoystickRightX);
+    rotateMotor4.set(filteredJoystickRightX);
+    rotateMotor6.set(filteredJoystickRightX);
+    rotateMotor8.set(filteredJoystickRightX);
+  }
+
+  protected void execute() {
+    SmartDashboard.putNumber("Joystick Left Y", PS4joystick.getLeftY());
   }
 
   /** This function is called once each time the robot enters test mode. */
