@@ -27,28 +27,31 @@ import com.ctre.phoenix.sensors.CANCoder;
  * directory.
  */
 public class Robot extends TimedRobot {
-  private CANSparkMax translateMotor1 = new CANSparkMax(2, MotorType.kBrushless); // rotation - evens
-  private CANSparkMax rotateMotor2 = new CANSparkMax(1, MotorType.kBrushless); // translation - odds
-  private CANSparkMax translateMotor3 = new CANSparkMax(4, MotorType.kBrushless);
-  private CANSparkMax rotateMotor4 = new CANSparkMax(3, MotorType.kBrushless); 
-  private CANSparkMax translateMotor5 = new CANSparkMax(6, MotorType.kBrushless); 
-  private CANSparkMax rotateMotor6 = new CANSparkMax(5, MotorType.kBrushless);
-  private CANSparkMax translateMotor7 = new CANSparkMax(8, MotorType.kBrushless);
-  private CANSparkMax rotateMotor8 = new CANSparkMax(7, MotorType.kBrushless); 
+  private CANSparkMax translateMotor1 = new CANSparkMax(1, MotorType.kBrushless); // rotation - evens
+  private CANSparkMax rotateMotor2 = new CANSparkMax(2, MotorType.kBrushless); // translation - odds
+  private CANSparkMax translateMotor3 = new CANSparkMax(3, MotorType.kBrushless);
+  private CANSparkMax rotateMotor4 = new CANSparkMax(4, MotorType.kBrushless); 
+  private CANSparkMax translateMotor5 = new CANSparkMax(5, MotorType.kBrushless); 
+  private CANSparkMax rotateMotor6 = new CANSparkMax(6, MotorType.kBrushless);
+  private CANSparkMax translateMotor7 = new CANSparkMax(7, MotorType.kBrushless);
+  private CANSparkMax rotateMotor8 = new CANSparkMax(8, MotorType.kBrushless); 
 
-  // private CANCoder coder1 = new CANCoder(1);
+  private CANCoder coder1 = new CANCoder(1);
+  private CANCoder coder2 = new CANCoder(2);
+  private CANCoder coder3 = new CANCoder(3);
+  private CANCoder coder4 = new CANCoder(4);
 
   private final PS4Controller PS4joystick = new PS4Controller(0); // 0 is the USB Port to be used as indicated on the Driver Station
   
   private final Timer m_timer = new Timer();
+
   private double filteredJoystickLeftY;
   private double filteredJoystickLeftX;
   // private double filteredJoystickRightY;
   private double filteredJoystickRightX;
 
-  private final double MAX_LINEAR_VELOCITY = 0.3;
-  private final double MAX_ANGULAR_VELOCITY = 0.4;
-
+  private final double MAX_LINEAR_VELOCITY = 0.23;
+  private final double MAX_ANGULAR_VELOCITY = 0.1;
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -146,9 +149,6 @@ public class Robot extends TimedRobot {
     double Vy = MAX_LINEAR_VELOCITY * (-1) * filteredJoystickLeftX;
     SmartDashboard.putNumber("Vy", Vy);
 
-    // SmartDashboard.putNumber("Joystick Right Y", filteredJoystickRightY);
-    // SmartDashboard.putNumber("Joystick Right Y", filteredJoystickRightY);
-
     // SmartDashboard.putNumber("Joystick Right X", filteredJoystickRightX);
     double omega = MAX_ANGULAR_VELOCITY * (-1) * filteredJoystickRightX;
     SmartDashboard.putNumber("w (omega)", omega);
@@ -157,56 +157,107 @@ public class Robot extends TimedRobot {
     // Mat mat = new Mat();
 
     // SmartDashboard.putNumber("Average RGB", );
-
-    // double cancodervalue = coder1.getPosition();
-
-    // SmartDashboard.putNumber("CANCODER 1", cancodervalue);
+    double cancodervalue1 = coder1.getAbsolutePosition();
+    SmartDashboard.putNumber("CANCODER 1", cancodervalue1);
+    double cancodervalue2 = coder2.getAbsolutePosition();
+    SmartDashboard.putNumber("CANCODER 2", cancodervalue2);
+    double cancodervalue3 = coder3.getAbsolutePosition();
+    SmartDashboard.putNumber("CANCODER 3", cancodervalue3);
+    double cancodervalue4 = coder4.getAbsolutePosition();
+    SmartDashboard.putNumber("CANCODER 4", cancodervalue4);
 
     double Vr = mag(Vx, Vy);
-    double Vr_norm[] = new double[]{Vx, Vy};
+    SmartDashboard.putNumber("Vr", Vr);
 
-    double d = Vr/omega;
+    double Vr_norm[] = new double[]{Vx/Vr, Vy/Vr};
+    SmartDashboard.putNumber("Vr_norm[0]", Vr_norm[0]);
+    SmartDashboard.putNumber("Vr_norm[1]", Vr_norm[1]);
 
-    double ICC[] = new double[]{d*(-1)*Vr_norm[1], d*Vr_norm[0]};
+    double d;
     double x = 12.125;
     double y = 12.125;
     // double wheel_radius = 1.5;
 
-    double Vwheel1_xy[] = new double[]{ICC[0] - x, ICC[1] - y};
-    double Vwheel2_xy[] = new double[]{ICC[0] - x, ICC[1] + y};
-    double Vwheel3_xy[] = new double[]{ICC[0] + x, ICC[1] + y};
-    double Vwheel4_xy[] = new double[]{ICC[0] + x, ICC[1] - y};
+    if (omega != 0) {
+      d = Vr/omega;
+      SmartDashboard.putNumber("d", d);
 
-    double Vwheel1 = mag(Vwheel1_xy[0], Vwheel1_xy[1]);
-    double Vwheel2 = mag(Vwheel2_xy[0], Vwheel2_xy[1]);
-    double Vwheel3 = mag(Vwheel3_xy[0], Vwheel3_xy[1]);
-    double Vwheel4 = mag(Vwheel4_xy[0], Vwheel4_xy[1]);
+      double ICC[] = new double[]{d*(-1)*Vr_norm[1], d*Vr_norm[0]};
+      SmartDashboard.putNumber("ICC[0]", ICC[0]);
+      SmartDashboard.putNumber("ICC[1]", ICC[1]);
 
-    SmartDashboard.putNumber("Vwheel1", Vwheel1);
-    SmartDashboard.putNumber("Vwheel2", Vwheel2);
-    SmartDashboard.putNumber("Vwheel3", Vwheel3);
-    SmartDashboard.putNumber("Vwheel4", Vwheel4);
+      double Vwheel1_xy[] = new double[]{ICC[0] - x, ICC[1] - y};
+      double Vwheel2_xy[] = new double[]{ICC[0] - x, ICC[1] + y};
+      double Vwheel3_xy[] = new double[]{ICC[0] + x, ICC[1] + y};
+      double Vwheel4_xy[] = new double[]{ICC[0] + x, ICC[1] - y};
 
+      double Vwheel1 = mag(Vwheel1_xy[0], Vwheel1_xy[1]) * omega;
+      double Vwheel2 = mag(Vwheel2_xy[0], Vwheel2_xy[1]) * omega;
+      double Vwheel3 = mag(Vwheel3_xy[0], Vwheel3_xy[1]) * omega;
+      double Vwheel4 = mag(Vwheel4_xy[0], Vwheel4_xy[1]) * omega;
 
-    // translateMotor1.set(Vwheel1);
-    // translateMotor3.set(Vwheel2);
-    // translateMotor5.set(Vwheel3);
-    // translateMotor7.set(Vwheel4);
+      SmartDashboard.putNumber("Vwheel1", Vwheel1);
+      SmartDashboard.putNumber("Vwheel2", Vwheel2);
+      SmartDashboard.putNumber("Vwheel3", Vwheel3);
+      SmartDashboard.putNumber("Vwheel4", Vwheel4);
 
-    double Omega_wheel1 = Math.atan2((-1)*Vwheel1_xy[0], Vwheel1_xy[1]);
-    double Omega_wheel2 = Math.atan2((-1)*Vwheel2_xy[0], Vwheel2_xy[1]);
-    double Omega_wheel3 = Math.atan2((-1)*Vwheel3_xy[0], Vwheel3_xy[1]);
-    double Omega_wheel4 = Math.atan2((-1)*Vwheel4_xy[0], Vwheel4_xy[1]);
+      // translateMotor1.set(Vwheel1);
+      // translateMotor3.set(Vwheel2);
+      // translateMotor5.set(Vwheel3);
+      // translateMotor7.set(Vwheel4);
 
-    SmartDashboard.putNumber("Omega1", Omega_wheel1);
-    SmartDashboard.putNumber("Omega2", Omega_wheel2);
-    SmartDashboard.putNumber("Omega3", Omega_wheel3);
-    SmartDashboard.putNumber("Omega4", Omega_wheel4);
+      double Omega_wheel1 = Math.atan2((-1)*Vwheel1_xy[0], Vwheel1_xy[1]);
+      double Omega_wheel2 = Math.atan2((-1)*Vwheel2_xy[0], Vwheel2_xy[1]);
+      double Omega_wheel3 = Math.atan2((-1)*Vwheel3_xy[0], Vwheel3_xy[1]);
+      double Omega_wheel4 = Math.atan2((-1)*Vwheel4_xy[0], Vwheel4_xy[1]);
 
-    // rotateMotor2.set(Omega_wheel1);
-    // rotateMotor4.set(Omega_wheel2);
-    // rotateMotor6.set(Omega_wheel3);
-    // rotateMotor8.set(Omega_wheel4);
+      SmartDashboard.putNumber("Omega1", Omega_wheel1);
+      SmartDashboard.putNumber("Omega2", Omega_wheel2);
+      SmartDashboard.putNumber("Omega3", Omega_wheel3);
+      SmartDashboard.putNumber("Omega4", Omega_wheel4);
+
+      // rotateMotor2.set(Omega_wheel1);
+      // rotateMotor4.set(Omega_wheel2);
+      // rotateMotor6.set(Omega_wheel3);
+      // rotateMotor8.set(Omega_wheel4);
+    }
+    else {
+      double Vwheel1 = Vr;
+      double Vwheel2 = Vr;
+      double Vwheel3 = Vr;
+      double Vwheel4 = Vr;
+
+      SmartDashboard.putNumber("Vwheel1", Vwheel1);
+      SmartDashboard.putNumber("Vwheel2", Vwheel2);
+      SmartDashboard.putNumber("Vwheel3", Vwheel3);
+      SmartDashboard.putNumber("Vwheel4", Vwheel4);
+      
+      // translateMotor1.set(Vwheel1);
+      // translateMotor3.set(Vwheel2);
+      // translateMotor5.set(Vwheel3);
+      // translateMotor7.set(Vwheel4);
+
+      double Angle = (Math.atan2(Vy,Vx) * 180) / Math.PI;
+      SmartDashboard.putNumber("Angle", Angle);
+
+      // double setAngle = Math.min(Angle, (180/Math.PI) - Angle);
+
+      // double Omega_wheel1 = Math.atan2(Vy,Vx);
+      // double Omega_wheel2 = Math.atan2(Vy,Vx);
+      // double Omega_wheel3 = Math.atan2(Vy,Vx);
+      // double Omega_wheel4 = Math.atan2(Vy,Vx);
+
+      // SmartDashboard.putNumber("Omega1", Omega_wheel1);
+      // SmartDashboard.putNumber("Omega2", Omega_wheel2);
+      // SmartDashboard.putNumber("Omega3", Omega_wheel3);
+      // SmartDashboard.putNumber("Omega4", Omega_wheel4);
+      
+      // rotateMotor2.set(Omega_wheel1);
+      // rotateMotor4.set(Omega_wheel2);
+      // rotateMotor6.set(Omega_wheel3);
+      // rotateMotor8.set(Omega_wheel4);
+    }
+
   }
 
   /** This function is called once each time the robot enters test mode. */
