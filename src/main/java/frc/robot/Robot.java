@@ -134,11 +134,9 @@ public class Robot extends TimedRobot {
 
   private double[] angleDiff(double desired, double current){
     double res[] = new double[]{0,0};
-    // SmartDashboard.putNumber("FIRST", Math.abs((current - desired)));
-    SmartDashboard.putNumber("DESIRED_PARAM", desired);
-    SmartDashboard.putNumber("CURRENT_PARAM", current);
-    // SmartDashboard.putNumber("SECOND", (Math.abs(current - desired) - 180));
-    if (Math.abs((current - desired)) < (Math.abs(current - desired) - 180)){
+    // SmartDashboard.putNumber("DESIRED_PARAM", desired);
+    // SmartDashboard.putNumber("CURRENT_PARAM", current);
+    if (Math.abs((current - desired)) < (Math.abs(desired - 180 - current))){
       res[0] = desired;
       res[1] = 1.0;
     }
