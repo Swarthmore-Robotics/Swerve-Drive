@@ -132,6 +132,23 @@ public class Robot extends TimedRobot {
     return Math.sqrt(Math.pow(x, 2) + Math.pow(y, 2));
   }
 
+  private double[] angleDiff(double desired, double current){
+    double res[] = new double[]{0,0};
+    // SmartDashboard.putNumber("FIRST", Math.abs((current - desired)));
+    SmartDashboard.putNumber("DESIRED_PARAM", desired);
+    SmartDashboard.putNumber("CURRENT_PARAM", current);
+    // SmartDashboard.putNumber("SECOND", (Math.abs(current - desired) - 180));
+    if (Math.abs((current - desired)) < (Math.abs(current - desired) - 180)){
+      res[0] = desired;
+      res[1] = 1.0;
+    }
+    else {
+      res[0] = desired - 180;
+      res[1] = -1.0;
+    }
+    return res;
+  }
+
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
@@ -141,15 +158,12 @@ public class Robot extends TimedRobot {
     // filteredJoystickRightY = filterJoystick(PS4joystick.getRightY(), true);
     filteredJoystickRightX = filterJoystick(PS4joystick.getRightX(), false);
 
-    // SmartDashboard.putNumber("Joystick Left Y", filteredJoystickLeftY);
     double Vx = MAX_LINEAR_VELOCITY * (-1) * filteredJoystickLeftY;
     SmartDashboard.putNumber("Vx",  Vx);
 
-    // SmartDashboard.putNumber("Joystick Left X", filteredJoystickLeftX);
     double Vy = MAX_LINEAR_VELOCITY * (-1) * filteredJoystickLeftX;
     SmartDashboard.putNumber("Vy", Vy);
 
-    // SmartDashboard.putNumber("Joystick Right X", filteredJoystickRightX);
     double omega = MAX_ANGULAR_VELOCITY * (-1) * filteredJoystickRightX;
     SmartDashboard.putNumber("w (omega)", omega);
 
@@ -157,34 +171,37 @@ public class Robot extends TimedRobot {
     // Mat mat = new Mat();
 
     // SmartDashboard.putNumber("Average RGB", );
-    double cancodervalue1 = coder1.getAbsolutePosition();
+    double cancodervalue1 = coder1.getAbsolutePosition() - 180;
     SmartDashboard.putNumber("CANCODER 1", cancodervalue1);
-    double cancodervalue2 = coder2.getAbsolutePosition();
+    double cancodervalue2 = coder2.getAbsolutePosition() - 180;
     SmartDashboard.putNumber("CANCODER 2", cancodervalue2);
-    double cancodervalue3 = coder3.getAbsolutePosition();
+    double cancodervalue3 = coder3.getAbsolutePosition() - 180;
     SmartDashboard.putNumber("CANCODER 3", cancodervalue3);
-    double cancodervalue4 = coder4.getAbsolutePosition();
+    double cancodervalue4 = coder4.getAbsolutePosition() - 180;
     SmartDashboard.putNumber("CANCODER 4", cancodervalue4);
 
     double Vr = mag(Vx, Vy);
     SmartDashboard.putNumber("Vr", Vr);
 
     double Vr_norm[] = new double[]{Vx/Vr, Vy/Vr};
-    SmartDashboard.putNumber("Vr_norm[0]", Vr_norm[0]);
-    SmartDashboard.putNumber("Vr_norm[1]", Vr_norm[1]);
+    // SmartDashboard.putNumber("Vr_norm[0]", Vr_norm[0]);
+    // SmartDashboard.putNumber("Vr_norm[1]", Vr_norm[1]);
 
     double d;
     double x = 12.125;
     double y = 12.125;
+    
     // double wheel_radius = 1.5;
 
     if (omega != 0) {
+      SmartDashboard.putNumber("Case", 2);
+
       d = Vr/omega;
-      SmartDashboard.putNumber("d", d);
+      // SmartDashboard.putNumber("d", d);
 
       double ICC[] = new double[]{d*(-1)*Vr_norm[1], d*Vr_norm[0]};
-      SmartDashboard.putNumber("ICC[0]", ICC[0]);
-      SmartDashboard.putNumber("ICC[1]", ICC[1]);
+      // SmartDashboard.putNumber("ICC[0]", ICC[0]);
+      // SmartDashboard.putNumber("ICC[1]", ICC[1]);
 
       double Vwheel1_xy[] = new double[]{ICC[0] - x, ICC[1] - y};
       double Vwheel2_xy[] = new double[]{ICC[0] - x, ICC[1] + y};
@@ -197,65 +214,41 @@ public class Robot extends TimedRobot {
       double Vwheel4 = mag(Vwheel4_xy[0], Vwheel4_xy[1]) * omega;
 
       SmartDashboard.putNumber("Vwheel1", Vwheel1);
-      SmartDashboard.putNumber("Vwheel2", Vwheel2);
-      SmartDashboard.putNumber("Vwheel3", Vwheel3);
-      SmartDashboard.putNumber("Vwheel4", Vwheel4);
-
-      // translateMotor1.set(Vwheel1);
-      // translateMotor3.set(Vwheel2);
-      // translateMotor5.set(Vwheel3);
-      // translateMotor7.set(Vwheel4);
+      // SmartDashboard.putNumber("Vwheel2", Vwheel2);
+      // SmartDashboard.putNumber("Vwheel3", Vwheel3);
+      // SmartDashboard.putNumber("Vwheel4", Vwheel4);
 
       double Omega_wheel1 = Math.atan2((-1)*Vwheel1_xy[0], Vwheel1_xy[1]);
       double Omega_wheel2 = Math.atan2((-1)*Vwheel2_xy[0], Vwheel2_xy[1]);
       double Omega_wheel3 = Math.atan2((-1)*Vwheel3_xy[0], Vwheel3_xy[1]);
       double Omega_wheel4 = Math.atan2((-1)*Vwheel4_xy[0], Vwheel4_xy[1]);
 
-      SmartDashboard.putNumber("Omega1", Omega_wheel1);
-      SmartDashboard.putNumber("Omega2", Omega_wheel2);
-      SmartDashboard.putNumber("Omega3", Omega_wheel3);
-      SmartDashboard.putNumber("Omega4", Omega_wheel4);
-
-      // rotateMotor2.set(Omega_wheel1);
-      // rotateMotor4.set(Omega_wheel2);
-      // rotateMotor6.set(Omega_wheel3);
-      // rotateMotor8.set(Omega_wheel4);
+    }
+    else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
+      // TODO: Rotate in place
+      SmartDashboard.putNumber("Case", 3);
     }
     else {
-      double Vwheel1 = Vr;
-      double Vwheel2 = Vr;
-      double Vwheel3 = Vr;
-      double Vwheel4 = Vr;
-
-      SmartDashboard.putNumber("Vwheel1", Vwheel1);
-      SmartDashboard.putNumber("Vwheel2", Vwheel2);
-      SmartDashboard.putNumber("Vwheel3", Vwheel3);
-      SmartDashboard.putNumber("Vwheel4", Vwheel4);
+      SmartDashboard.putNumber("Case", 1);
+      double DESIRED = ((Math.atan2(Vy,Vx) * 180) / Math.PI);
+      SmartDashboard.putNumber("DESIRED_BEFORE", DESIRED);
       
-      // translateMotor1.set(Vwheel1);
-      // translateMotor3.set(Vwheel2);
-      // translateMotor5.set(Vwheel3);
-      // translateMotor7.set(Vwheel4);
+      // double AngleAtan2 = Math.atan2(Vy,Vx);
+      // SmartDashboard.putNumber("AngleAtan2", AngleAtan2);
 
-      double Angle = (Math.atan2(Vy,Vx) * 180) / Math.PI;
-      SmartDashboard.putNumber("Angle", Angle);
+      SmartDashboard.putNumber("CURRENT_BEFORE", cancodervalue1);
 
-      // double setAngle = Math.min(Angle, (180/Math.PI) - Angle);
+      double res1[] = angleDiff(DESIRED, cancodervalue1);
+      // double res2[] = angleDiff(DESIRED, cancodervalue2);
+      // double res3[] = angleDiff(DESIRED, cancodervalue3);
+      // double res4[] = angleDiff(DESIRED, cancodervalue4);
 
-      // double Omega_wheel1 = Math.atan2(Vy,Vx);
-      // double Omega_wheel2 = Math.atan2(Vy,Vx);
-      // double Omega_wheel3 = Math.atan2(Vy,Vx);
-      // double Omega_wheel4 = Math.atan2(Vy,Vx);
-
-      // SmartDashboard.putNumber("Omega1", Omega_wheel1);
-      // SmartDashboard.putNumber("Omega2", Omega_wheel2);
-      // SmartDashboard.putNumber("Omega3", Omega_wheel3);
-      // SmartDashboard.putNumber("Omega4", Omega_wheel4);
+      SmartDashboard.putNumber("Vwheel1", Vr * res1[1]);
       
-      // rotateMotor2.set(Omega_wheel1);
-      // rotateMotor4.set(Omega_wheel2);
-      // rotateMotor6.set(Omega_wheel3);
-      // rotateMotor8.set(Omega_wheel4);
+      SmartDashboard.putNumber("SetAngle1", res1[0]);
+      
+      // TODO: Set Rotation Motor Position based on encoders
+
     }
 
   }
