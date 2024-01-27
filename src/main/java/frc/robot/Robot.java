@@ -4,6 +4,7 @@
 
 package frc.robot;
 
+// CAN + SPARKMAX
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.CANSparkMax.ControlType;
@@ -11,17 +12,22 @@ import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxAlternateEncoder.Type;
 import com.revrobotics.RelativeEncoder;
 
-import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.cscore.CvSink;
-import edu.wpi.first.cscore.CvSource;
-import edu.wpi.first.cscore.UsbCamera;
+
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
+// Vision
+import edu.wpi.first.cameraserver.CameraServer;
+import edu.wpi.first.cscore.CvSink;
+import edu.wpi.first.cscore.CvSource;
+import edu.wpi.first.cscore.UsbCamera;
 import org.opencv.core.Mat;
+import org.opencv.core.Point;
+import org.opencv.core.Scalar;
+import org.opencv.imgproc.Imgproc;
 
 import com.ctre.phoenix.sensors.CANCoder;
 
@@ -82,13 +88,27 @@ public class Robot extends TimedRobot {
     // gearbox is constructed, you might have to invert the left side instead.
     // m_rightDrive.setInverted(true);
     // CameraServer.startAutomaticCapture();
-    // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
-    // usbCamera.setResolution(320, 240);
+    new Thread(() -> {
+      UsbCamera usbCamera = CameraServer.startAutomaticCapture();
+      // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
+      usbCamera.setResolution(640, 480);
 
-    // CvSink cvSink = CameraServer.getVideo();
-    // CvSource outputStream = CameraServer.putVideo("Rectangle", 320, 240);
+      CvSink cvSink = CameraServer.getVideo();
+      CvSource outputStream = CameraServer.putVideo("Rectangle", 640, 480);
 
-    // cvSink.setSource(usbCamera);
+      cvSink.setSource(usbCamera);
+      Point upleft = new Point(0, 0);
+      Point downright = new Point(100, 100);
+      Scalar color = new Scalar(0, 0, 255);
+      Mat sourceMat = new Mat();
+      
+      while(true){
+        cvSink.grabFrame(sourceMat);
+        Imgproc.rectangle(sourceMat, upleft, downright, color);
+        outputStream.putFrame(sourceMat);
+      }
+    }).start();
+  
 
 
     // Creates the CvSource and MjpegServer [2] and connects them
