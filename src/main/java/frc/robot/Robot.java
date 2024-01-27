@@ -6,6 +6,7 @@ package frc.robot;
 
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.SparkMaxPIDController;
+import com.revrobotics.CANSparkMax.ControlType;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxAlternateEncoder.Type;
 import com.revrobotics.RelativeEncoder;
@@ -54,6 +55,7 @@ public class Robot extends TimedRobot {
   private RelativeEncoder RM4_Encoder;
   private RelativeEncoder RM6_Encoder;
   private RelativeEncoder RM8_Encoder;
+  private double convFactor = 5.62279270244;
 
   private final PS4Controller PS4joystick = new PS4Controller(0); // 0 is the USB Port to be used as indicated on the Driver Station
   
@@ -66,6 +68,8 @@ public class Robot extends TimedRobot {
 
   private final double MAX_LINEAR_VELOCITY = 0.23;
   private final double MAX_ANGULAR_VELOCITY = 0.1;
+  public double kP, kI, kD, kIz, kFF, kMaxOutput, kMinOutput, maxRPM, maxVel, minVel, maxAcc, allowedErr;
+  
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -92,6 +96,44 @@ public class Robot extends TimedRobot {
     // CvSink cvSink = CameraServer.getVideo();
     // CvSource outputStream = CameraServer.putVideo("Blur", 320, 240);
     // CameraServer.getVideo();
+    
+    RM4_PidController = rotateMotor4.getPIDController();
+    RM4_Encoder = rotateMotor4.getEncoder();
+    RM4_Encoder.setPositionConversionFactor(convFactor);
+    // SmartDashboard.putNumber("ABS POS CODER 2", coder2.getAbsolutePosition());
+    RM4_Encoder.setPosition(0);
+    // SmartDashboard.putNumber("RM4_Encoder Value", RM4_Encoder.getPosition());
+
+    // PID coefficients
+    kP = 1e-4; 
+    kI = 2e-8;
+    // kI = 0;
+    // kD = 1e-9;
+    kD = 0; 
+    kIz = 0; 
+    kFF = 0; 
+    kMaxOutput = 1; 
+    kMinOutput = -1;
+    maxRPM = 11000;
+
+    // Smart Motion Coefficients
+    maxVel = maxRPM; // rpm
+    maxAcc = 1000;
+
+    // set PID coefficients
+    RM4_PidController.setP(kP);
+    RM4_PidController.setI(kI);
+    RM4_PidController.setD(kD);
+    RM4_PidController.setIZone(kIz);
+    RM4_PidController.setFF(kFF);
+    RM4_PidController.setOutputRange(kMinOutput, kMaxOutput);
+
+    int smartMotionSlot = 0;
+    RM4_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
+    RM4_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
+    RM4_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
+    RM4_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -118,7 +160,14 @@ public class Robot extends TimedRobot {
 
   /** This function is called once each time the robot enters teleoperated mode. */
   @Override
-  public void teleopInit() {}
+  public void teleopInit() {
+    // Set every wheel's position to 0 degrees
+
+    // RM2_Encoder = rotateMotor2.getAlternateEncoder(Type.kQuadrature,4096);
+    // RM2_Encoder.setPosition(coder2.getAbsolutePosition());
+    // SmartDashboard.putNumber("RM2_Encoder Value", RM2_Encoder.getPosition());
+
+  }
 
   // Private function defintions
   // ------------------------------------------------------------------------------
@@ -181,7 +230,10 @@ public class Robot extends TimedRobot {
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
-
+    RM4_PidController.setReference(90, CANSparkMax.ControlType.kSmartMotion);
+    SmartDashboard.putNumber("ABS POS CODER 2", coder2.getAbsolutePosition());
+    SmartDashboard.putNumber("RM4_Encoder Value", RM4_Encoder.getPosition());
+    
     // Obtain filtered Joystick Inputs
     filteredJoystickLeftY = filterJoystick(PS4joystick.getLeftY(), true);
     filteredJoystickLeftX = filterJoystick(PS4joystick.getLeftX(), true);
@@ -212,15 +264,14 @@ public class Robot extends TimedRobot {
     // SmartDashboard.putNumber("Average RGB", );
 
     // Obtain absolute position of each wheel's rotation motor
-    double cancodervalue1 = coder1.getAbsolutePosition() - 180;
-    SmartDashboard.putNumber("CANCODER 1", cancodervalue1);
-    double cancodervalue2 = coder2.getAbsolutePosition() - 180;
-    SmartDashboard.putNumber("CANCODER 2", cancodervalue2);
-    double cancodervalue3 = coder3.getAbsolutePosition() - 180;
-    SmartDashboard.putNumber("CANCODER 3", cancodervalue3);
-    double cancodervalue4 = coder4.getAbsolutePosition() - 180;
-    SmartDashboard.putNumber("CANCODER 4", cancodervalue4);
-
+    // double cancodervalue1 = coder1.getAbsolutePosition() - 180;
+    // SmartDashboard.putNumber("CANCODER 1", cancodervalue1);
+    // double cancodervalue2 = coder2.getAbsolutePosition() - 180;
+    // SmartDashboard.putNumber("CANCODER 2", cancodervalue2);
+    // double cancodervalue3 = coder3.getAbsolutePosition() - 180;
+    // SmartDashboard.putNumber("CANCODER 3", cancodervalue3);
+    // double cancodervalue4 = coder4.getAbsolutePosition() - 180;
+    // SmartDashboard.putNumber("CANCODER 4", cancodervalue4);
 
 
     // Constants
@@ -235,18 +286,18 @@ public class Robot extends TimedRobot {
       // No rotation, CASE 1
       SmartDashboard.putNumber("Case", 1);
 
-      double DESIRED = ((Math.atan2(Vy,Vx) * 180) / Math.PI);
-      SmartDashboard.putNumber("DESIRED_BEFORE", DESIRED);
+      // double DESIRED = ((Math.atan2(Vy,Vx) * 180) / Math.PI);
+      // SmartDashboard.putNumber("DESIRED_BEFORE", DESIRED);
       
       // double AngleAtan2 = Math.atan2(Vy,Vx);
       // SmartDashboard.putNumber("AngleAtan2", AngleAtan2);
 
-      SmartDashboard.putNumber("CURRENT_BEFORE", cancodervalue1);
+      // SmartDashboard.putNumber("CURRENT_BEFORE", cancodervalue1);
 
-      double res1[] = angleDiff(DESIRED, cancodervalue1);
-      double res2[] = angleDiff(DESIRED, cancodervalue2);
-      double res3[] = angleDiff(DESIRED, cancodervalue3);
-      double res4[] = angleDiff(DESIRED, cancodervalue4);
+      // double res1[] = angleDiff(DESIRED, cancodervalue1);
+      // double res2[] = angleDiff(DESIRED, cancodervalue2);
+      // double res3[] = angleDiff(DESIRED, cancodervalue3);
+      // double res4[] = angleDiff(DESIRED, cancodervalue4);
 
       // SmartDashboard.putNumber("Vwheel1", Vr * res1[1]);
       // SmartDashboard.putNumber("SetAngle1", res1[0]);
@@ -297,33 +348,33 @@ public class Robot extends TimedRobot {
     else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
       // Rotate in place, CASE 3
       SmartDashboard.putNumber("Case", 3);
-      double res1[] = angleDiff(135, cancodervalue1);
-      double res2[] = angleDiff(45, cancodervalue2);
-      double res3[] = angleDiff(315, cancodervalue3);
-      double res4[] = angleDiff(225, cancodervalue4);
+      // double res1[] = angleDiff(135, cancodervalue1);
+      // double res2[] = angleDiff(45, cancodervalue2);
+      // double res3[] = angleDiff(315, cancodervalue3);
+      // double res4[] = angleDiff(225, cancodervalue4);
 
-      if (omega > 0) {
-        // rotateMotor2.set(res1[0]);
-        // rotateMotor4.set(res2[0]);
-        // rotateMotor6.set(res3[0]);
-        // rotateMotor8.set(res4[0]);
+      // if (omega > 0) {
+      //   // rotateMotor2.set(res1[0]);
+      //   // rotateMotor4.set(res2[0]);
+      //   // rotateMotor6.set(res3[0]);
+      //   // rotateMotor8.set(res4[0]);
 
-        // translateMotor1.set(res1[1] * omega * mag(x,y));
-        // translateMotor3.set(res2[1] * omega * mag(x,y));
-        // translateMotor5.set(res3[1] * omega * mag(x,y));
-        // translateMotor7.set(res4[1] * omega * mag(x,y));
-      }
-      else if (omega < 0) {
-        // rotateMotor2.set(res1[0]);
-        // rotateMotor4.set(res2[0]);
-        // rotateMotor6.set(res3[0]);
-        // rotateMotor8.set(res4[0]);
+      //   // translateMotor1.set(res1[1] * omega * mag(x,y));
+      //   // translateMotor3.set(res2[1] * omega * mag(x,y));
+      //   // translateMotor5.set(res3[1] * omega * mag(x,y));
+      //   // translateMotor7.set(res4[1] * omega * mag(x,y));
+      // }
+      // else if (omega < 0) {
+      //   // rotateMotor2.set(res1[0]);
+      //   // rotateMotor4.set(res2[0]);
+      //   // rotateMotor6.set(res3[0]);
+      //   // rotateMotor8.set(res4[0]);
 
-        // translateMotor1.set(-1 * res1[1] * omega * mag(x,y));
-        // translateMotor3.set(-1 * res2[1] * omega * mag(x,y));
-        // translateMotor5.set(-1 * res3[1] * omega * mag(x,y));
-        // translateMotor7.set(-1 * res4[1] * omega * mag(x,y));
-      }
+      //   // translateMotor1.set(-1 * res1[1] * omega * mag(x,y));
+      //   // translateMotor3.set(-1 * res2[1] * omega * mag(x,y));
+      //   // translateMotor5.set(-1 * res3[1] * omega * mag(x,y));
+      //   // translateMotor7.set(-1 * res4[1] * omega * mag(x,y));
+      // }
     }
 
   }
