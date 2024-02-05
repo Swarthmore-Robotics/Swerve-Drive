@@ -89,26 +89,26 @@ public class Robot extends TimedRobot {
     // gearbox is constructed, you might have to invert the left side instead.
     // m_rightDrive.setInverted(true);
     // CameraServer.startAutomaticCapture();
-    // new Thread(() -> {
-    //   UsbCamera usbCamera = CameraServer.startAutomaticCapture();
-    //   // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
-    //   usbCamera.setResolution(640, 480);
+    new Thread(() -> {
+      UsbCamera usbCamera = CameraServer.startAutomaticCapture();
+      // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
+      usbCamera.setResolution(640, 480);
 
-    //   CvSink cvSink = CameraServer.getVideo();
-    //   CvSource outputStream = CameraServer.putVideo("Rectangle", 640, 480);
+      CvSink cvSink = CameraServer.getVideo();
+      CvSource outputStream = CameraServer.putVideo("Rectangle", 640, 480);
 
-    //   cvSink.setSource(usbCamera);
-    //   Point upleft = new Point(0, 0);
-    //   Point downright = new Point(100, 100);
-    //   Scalar color = new Scalar(0, 0, 255);
-    //   Mat sourceMat = new Mat();
+      cvSink.setSource(usbCamera);
+      Point upleft = new Point(0, 0);
+      Point downright = new Point(100, 100);
+      Scalar color = new Scalar(0, 0, 255);
+      Mat sourceMat = new Mat();
       
-    //   while(true){
-    //     cvSink.grabFrame(sourceMat);
-    //     Imgproc.rectangle(sourceMat, upleft, downright, color);
-    //     outputStream.putFrame(sourceMat);
-    //   }
-    // }).start();
+      while(true){
+        cvSink.grabFrame(sourceMat);
+        Imgproc.rectangle(sourceMat, upleft, downright, color);
+        outputStream.putFrame(sourceMat);
+      }
+    }).start();
 
     // Creates the CvSource and MjpegServer [2] and connects them
     // CvSource outputStream = new CvSource("Blur", PixelFormat.kMJPEG, 640, 480, 30);
