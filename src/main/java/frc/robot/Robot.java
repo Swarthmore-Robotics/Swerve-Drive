@@ -76,6 +76,10 @@ public class Robot extends TimedRobot {
   private final double MAX_LINEAR_VELOCITY = 0.23;
   private final double MAX_ANGULAR_VELOCITY = 0.1;
   public double kP, kI, kD, kIz, kFF, kMaxOutput, kMinOutput, maxRPM, maxVel, minVel, maxAcc, allowedErr;
+
+  private Thread visionThread;
+  private final int imgWidth = 640;
+  private final int imgHeight = 480;
   
 
   /**
@@ -89,26 +93,40 @@ public class Robot extends TimedRobot {
     // gearbox is constructed, you might have to invert the left side instead.
     // m_rightDrive.setInverted(true);
     // CameraServer.startAutomaticCapture();
-    new Thread(() -> {
-      UsbCamera usbCamera = CameraServer.startAutomaticCapture();
+    visionThread = new Thread(() -> {
+      // add USB camera, create server for SmartDashboard
+      UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
       // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
-      usbCamera.setResolution(640, 480);
+      usbCamera.setResolution(imgWidth, imgHeight);
 
-      CvSink cvSink = CameraServer.getVideo();
-      CvSource outputStream = CameraServer.putVideo("Rectangle", 640, 480);
+      CvSink cvSink = CameraServer.getVideo(); // grab images from camera
+      CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
-      cvSink.setSource(usbCamera);
+      //cvSink.setSource(usbCamera);
       Point upleft = new Point(0, 0);
-      Point downright = new Point(100, 100);
-      Scalar color = new Scalar(0, 0, 255);
+      Point downright = new Point(200, 200);
+      Scalar color = new Scalar(255, 255, 255);
       Mat sourceMat = new Mat();
       
       while(true){
-        cvSink.grabFrame(sourceMat);
-        Imgproc.rectangle(sourceMat, upleft, downright, color);
+        if (cvSink.grabFrame(sourceMat) == 0) {
+          // Send the output the error.
+          outputStream.notifyError(cvSink.getError());
+          // skip the rest of the current iteration
+          continue;
+        }
+        Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY);
+        Imgproc.rectangle(sourceMat, upleft, downright, color, -1, 8, 0);
         outputStream.putFrame(sourceMat);
+        SmartDashboard.putNumber("Image Mat Height", sourceMat.height());
+        SmartDashboard.putNumber("Image Mat Width", sourceMat.width());
+        SmartDashboard.putNumber("Image Mat Dims", sourceMat.dims());
       }
-    }).start();
+
+    });
+
+    visionThread.setDaemon(true);
+    visionThread.start();
 
     // Creates the CvSource and MjpegServer [2] and connects them
     // CvSource outputStream = new CvSource("Blur", PixelFormat.kMJPEG, 640, 480, 30);
