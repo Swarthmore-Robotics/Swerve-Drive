@@ -11,7 +11,6 @@ import com.revrobotics.CANSparkMax.ControlType;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxAlternateEncoder.Type;
 import com.revrobotics.RelativeEncoder;
-// import edu.wpi.first.math.geometry.Rotation2d;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
@@ -38,6 +37,7 @@ import com.ctre.phoenix.sensors.CANCoder;
  * directory.
  */
 public class Robot extends TimedRobot {
+  // wheel motors
   private CANSparkMax translateMotor1 = new CANSparkMax(1, MotorType.kBrushless); // translation - odds
   private CANSparkMax rotateMotor2 = new CANSparkMax(2, MotorType.kBrushless); // rotation - evens
   private CANSparkMax translateMotor3 = new CANSparkMax(3, MotorType.kBrushless);
@@ -47,6 +47,7 @@ public class Robot extends TimedRobot {
   private CANSparkMax translateMotor7 = new CANSparkMax(7, MotorType.kBrushless);
   private CANSparkMax rotateMotor8 = new CANSparkMax(8, MotorType.kBrushless); 
   
+  // wheel encoders
   private CANCoder coder1 = new CANCoder(1);
   private CANCoder coder2 = new CANCoder(2);
   private CANCoder coder3 = new CANCoder(3);
@@ -64,10 +65,8 @@ public class Robot extends TimedRobot {
   private double convFactor = 5.62279270244;
   // private double convFactor = 1;
 
+  // joystick controller
   private final PS4Controller PS4joystick = new PS4Controller(0); // 0 is the USB Port to be used as indicated on the Driver Station
-  
-  private final Timer m_timer = new Timer();
-
   private double filteredJoystickLeftY;
   private double filteredJoystickLeftX;
   // private double filteredJoystickRightY;
@@ -75,12 +74,25 @@ public class Robot extends TimedRobot {
 
   private final double MAX_LINEAR_VELOCITY = 0.23;
   private final double MAX_ANGULAR_VELOCITY = 0.1;
-  public double kP, kI, kD, kIz, kFF, kMaxOutput, kMinOutput, maxRPM, maxVel, minVel, maxAcc, allowedErr;
 
-  private Thread visionThread;
-  private final int imgWidth = 640;
-  private final int imgHeight = 480;
+  // PID Constants
+  public double kP = 5e-5;
+  public double kI = 1e-8;
+  public double kD = 0;
+  public double kIz = 0; 
+  public double kFF = 0; 
+  public double kMaxOutput = 1; 
+  public double kMinOutput = -1;
+  public double maxRPM = 11000;
   
+  // Smart Motion Coefficients
+  public double maxVel = maxRPM; // rpm
+  public double maxAcc = 1000;
+  public double allowedErr = 0; // TODO: placeholder, not correct value
+
+  private final Timer m_timer = new Timer();
+
+  // encoder offset variables
   public final double[] offset1 = new double[]{14.589844, -165.585938};
   public final double[] offset2 = new double[]{51.064453, -130.253906};
   public final double[] offset3 = new double[]{117.949219, -60.292969};
@@ -91,179 +103,25 @@ public class Robot extends TimedRobot {
   public final double[] pinkoffset3 = new double[]{-90.500122, 89.499878};
   public final double[] pinkoffset4 = new double[]{0,0};
 
+
+  // Vision
+  private Thread visionThread;
+  private final int imgWidth = 640;
+  private final int imgHeight = 480;
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
    */
   @Override
   public void robotInit() {
-    // We need to invert one side of the drivetrain so that positive voltages
-    // result in both sides moving forward. Depending on how your robot's
-    // gearbox is constructed, you might have to invert the left side instead.
-    // m_rightDrive.setInverted(true);
-    // CameraServer.startAutomaticCapture();
-    visionThread = new Thread(() -> {
-      // add USB camera, create server for SmartDashboard
-      UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
-      // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
-      usbCamera.setResolution(imgWidth, imgHeight);
 
-      CvSink cvSink = CameraServer.getVideo(); // grab images from camera
-      CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
-
-      //cvSink.setSource(usbCamera);
-      Point upleft = new Point(0, 0);
-      Point downright = new Point(200, 200);
-      Scalar color = new Scalar(255, 255, 255);
-      Mat sourceMat = new Mat();
-      
-      while(true){
-        if (cvSink.grabFrame(sourceMat) == 0) {
-          // Send the output the error.
-          outputStream.notifyError(cvSink.getError());
-          // skip the rest of the current iteration
-          continue;
-        }
-        Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY);
-        Imgproc.rectangle(sourceMat, upleft, downright, color, -1, 8, 0);
-        outputStream.putFrame(sourceMat);
-        SmartDashboard.putNumber("Image Mat Height", sourceMat.height());
-        SmartDashboard.putNumber("Image Mat Width", sourceMat.width());
-        SmartDashboard.putNumber("Image Mat Dims", sourceMat.dims());
-      }
-
-    });
-
-    visionThread.setDaemon(true);
-    visionThread.start();
-
-    // Creates the CvSource and MjpegServer [2] and connects them
-    // CvSource outputStream = new CvSource("Blur", PixelFormat.kMJPEG, 640, 480, 30);
-    // CvSink cvSink = CameraServer.getVideo();
-    // CvSource outputStream = CameraServer.putVideo("Blur", 320, 240);
-    // CameraServer.getVideo();
-    
-    RM2_PidController = rotateMotor2.getPIDController();
-    RM2_Encoder = rotateMotor2.getEncoder();
-    RM2_Encoder.setPositionConversionFactor(convFactor);
-
-    RM4_PidController = rotateMotor4.getPIDController();
-    RM4_Encoder = rotateMotor4.getEncoder();
-    RM4_Encoder.setPositionConversionFactor(convFactor);
-
-    rotateMotor6.restoreFactoryDefaults();
-    RM6_PidController = rotateMotor6.getPIDController();
-    RM6_Encoder = rotateMotor6.getEncoder();
-    RM6_Encoder.setPositionConversionFactor(convFactor);
-
-    RM8_PidController = rotateMotor8.getPIDController();
-    RM8_Encoder = rotateMotor8.getEncoder();
-    RM8_Encoder.setPositionConversionFactor(convFactor);
-
-    // double cancodervalue3 = coder3.getAbsolutePosition();
-    // double newval3 = wrapEncoderValues(cancodervalue3 + offset3[0]);
-    // if (cancodervalue3 >= 0) {
-    //   pinkoffset3[0] = -1 * (cancodervalue3 - (-1* (offset3[1])));
-    //   pinkoffset3[1] = 180 + pinkoffset3[0];
-    //   // pinkoffset3[1] = cancodervalue3 - offset3[0];
-    // }
-    // else {
-    //   pinkoffset3[0] = cancodervalue3 - (offset3[0]);
-    //   pinkoffset3[1] = -180 - pinkoffset3[0];
-    // }
-
-    // SmartDashboard.putNumber("pinkoffset3[0]", pinkoffset3[0]);
-    // SmartDashboard.putNumber("pinkoffset3[1]", pinkoffset3[1]);
+    // initialize vision
+    initVision();
 
 
-    // PID coefficients, RM2
-    kP = 5e-5;
-    // kP = 0; 
-    kI = 1e-8;
-    // kI = 0;
-    // kD = 1e-7; 
-    kD = 0;
-    // kIz = 1e-4;
-    kIz = 0; 
-    // kFF = 0.00009091;
-    kFF = 0; 
-    kMaxOutput = 1; 
-    kMinOutput = -1;
-    maxRPM = 11000;
-
-    // Smart Motion Coefficients
-    maxVel = maxRPM; // rpm
-    maxAcc = 1000;
-
-    // set PID coefficients
-    RM2_PidController.setP(kP);
-    RM2_PidController.setI(kI);
-    RM2_PidController.setD(kD);
-    RM2_PidController.setIZone(kIz);
-    RM2_PidController.setFF(kFF);
-    RM2_PidController.setOutputRange(kMinOutput, kMaxOutput);
-
-    RM4_PidController.setP(kP);
-    RM4_PidController.setI(kI);
-    RM4_PidController.setD(kD);
-    RM4_PidController.setIZone(kIz);
-    RM4_PidController.setFF(kFF);
-    RM4_PidController.setOutputRange(kMinOutput, kMaxOutput);
-
-    RM6_PidController.setP(kP);
-    RM6_PidController.setI(kI);
-    RM6_PidController.setD(kD);
-    RM6_PidController.setIZone(kIz);
-    RM6_PidController.setFF(kFF);
-    RM6_PidController.setOutputRange(kMinOutput, kMaxOutput);
-    
-    // // display PID coefficients on SmartDashboard
-    // SmartDashboard.putNumber("P Gain", kP);
-    // SmartDashboard.putNumber("I Gain", kI);
-    // SmartDashboard.putNumber("D Gain", kD);
-    // SmartDashboard.putNumber("I Zone", kIz);
-    // SmartDashboard.putNumber("Feed Forward", kFF);
-    // SmartDashboard.putNumber("Max Output", kMaxOutput);
-    // SmartDashboard.putNumber("Min Output", kMinOutput);
-
-    // // display Smart Motion coefficients
-    // SmartDashboard.putNumber("Max Velocity", maxVel);
-    // SmartDashboard.putNumber("Min Velocity", minVel);
-    // SmartDashboard.putNumber("Max Acceleration", maxAcc);
-    // SmartDashboard.putNumber("Allowed Closed Loop Error", allowedErr);
-    // SmartDashboard.putNumber("Set Position", 0);
-    // SmartDashboard.putNumber("Set Velocity", 0);
-
-    // // button to toggle between velocity and smart motion modes
-    // SmartDashboard.putBoolean("Mode", true);
-
-    RM8_PidController.setP(kP);
-    RM8_PidController.setI(kI);
-    RM8_PidController.setD(kD);
-    RM8_PidController.setIZone(kIz);
-    RM8_PidController.setFF(kFF);
-    RM8_PidController.setOutputRange(kMinOutput, kMaxOutput);
-
-    int smartMotionSlot = 0;
-    RM2_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM2_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM2_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM2_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
-
-    RM4_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM4_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM4_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM4_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
-
-    RM6_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM6_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM6_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM6_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
-
-    RM8_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM8_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM8_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM8_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+    // initialize PID
+    initPID();
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -363,18 +221,6 @@ public class Robot extends TimedRobot {
     return EncInitPos;
   }
 
-  // private double wrapEncoderValues360test (double EncInitPos){
-  //   EncInitPos += 180;
-  //   if (EncInitPos < 0){
-  //     EncInitPos = 360 - ((-1*EncInitPos)%360);
-  //   }
-  //   else{
-  //     EncInitPos = EncInitPos % 360;
-  //     EncInitPos -= 180.0;
-  //   }
-  //   return EncInitPos;
-  // }
-
     /*
    * Returns a 2x1 double array. First element is the optimized angle
    * to snap to, second element is either -1.0 to signify wheel velocity
@@ -383,16 +229,6 @@ public class Robot extends TimedRobot {
    */
   private double[] angleDiff(double desired, double current){
     double res[] = new double[]{0,0};
-    // SmartDashboard.putNumber("DESIRED_PARAM", desired);
-    // SmartDashboard.putNumber("CURRENT_PARAM", current);
-    // if (Math.abs((current - desired)) < (Math.abs(desired - 180 - current))){
-    //   res[0] = desired;
-    //   res[1] = 1.0;      
-    // }
-    // else {
-    //   res[0] = desired - 180;
-    //   res[1] = -1.0;
-    // }
     double delta = wrapEncoderValues(desired - current);
 
     if (Math.abs(delta) < 90) {
@@ -405,6 +241,166 @@ public class Robot extends TimedRobot {
     }
 
     return res;
+  }
+
+   /*
+   * Wrapper functions to more easily output values to SmartDashboard
+   * cleaner code
+   */
+  private void printDB(String name, double val){ // print 1 value
+    SmartDashboard.putNumber(name, val);
+  }
+  private void printDB(String name, boolean bool){ // print 1 value
+    SmartDashboard.putBoolean(name, bool);
+  }
+  private void printDB(String name, String s){ // print 1 value
+    SmartDashboard.putString(name, s);
+  }
+  private void printDB(String[] names, double[] vals){ // print a list of values
+    for(int i = 0; i < length(names); i++){
+      printDB(names[i], vals[i]);
+    }
+  }
+
+  /*
+   * Initializes PID constants to all motor controllers
+   */
+  private void initPID(boolean verbose){
+
+    // PID controllers
+    RM2_PidController = rotateMotor2.getPIDController();
+    RM2_Encoder = rotateMotor2.getEncoder();
+    RM2_Encoder.setPositionConversionFactor(convFactor);
+
+    RM4_PidController = rotateMotor4.getPIDController();
+    RM4_Encoder = rotateMotor4.getEncoder();
+    RM4_Encoder.setPositionConversionFactor(convFactor);
+
+    rotateMotor6.restoreFactoryDefaults();
+    RM6_PidController = rotateMotor6.getPIDController();
+    RM6_Encoder = rotateMotor6.getEncoder();
+    RM6_Encoder.setPositionConversionFactor(convFactor);
+
+    RM8_PidController = rotateMotor8.getPIDController();
+    RM8_Encoder = rotateMotor8.getEncoder();
+    RM8_Encoder.setPositionConversionFactor(convFactor);
+
+
+    RM2_PidController.setP(kP);
+    RM2_PidController.setI(kI);
+    RM2_PidController.setD(kD);
+    RM2_PidController.setIZone(kIz);
+    RM2_PidController.setFF(kFF);
+    RM2_PidController.setOutputRange(kMinOutput, kMaxOutput);
+
+    RM4_PidController.setP(kP);
+    RM4_PidController.setI(kI);
+    RM4_PidController.setD(kD);
+    RM4_PidController.setIZone(kIz);
+    RM4_PidController.setFF(kFF);
+    RM4_PidController.setOutputRange(kMinOutput, kMaxOutput);
+
+    RM6_PidController.setP(kP);
+    RM6_PidController.setI(kI);
+    RM6_PidController.setD(kD);
+    RM6_PidController.setIZone(kIz);
+    RM6_PidController.setFF(kFF);
+    RM6_PidController.setOutputRange(kMinOutput, kMaxOutput);
+
+    RM8_PidController.setP(kP);
+    RM8_PidController.setI(kI);
+    RM8_PidController.setD(kD);
+    RM8_PidController.setIZone(kIz);
+    RM8_PidController.setFF(kFF);
+    RM8_PidController.setOutputRange(kMinOutput, kMaxOutput);
+
+    int smartMotionSlot = 0;
+    RM2_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
+    RM2_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
+    RM2_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
+    RM2_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+
+    RM4_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
+    RM4_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
+    RM4_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
+    RM4_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+
+    RM6_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
+    RM6_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
+    RM6_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
+    RM6_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+
+    RM8_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
+    RM8_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
+    RM8_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
+    RM8_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+
+    if(verbose){
+      // display PID coefficients on SmartDashboard
+      SmartDashboard.putNumber("P Gain", kP);
+      SmartDashboard.putNumber("I Gain", kI);
+      SmartDashboard.putNumber("D Gain", kD);
+      SmartDashboard.putNumber("I Zone", kIz);
+      SmartDashboard.putNumber("Feed Forward", kFF);
+      SmartDashboard.putNumber("Max Output", kMaxOutput);
+      SmartDashboard.putNumber("Min Output", kMinOutput);
+
+      // display Smart Motion coefficients
+      SmartDashboard.putNumber("Max Velocity", maxVel);
+      SmartDashboard.putNumber("Min Velocity", minVel);
+      SmartDashboard.putNumber("Max Acceleration", maxAcc);
+      SmartDashboard.putNumber("Allowed Closed Loop Error", allowedErr);
+      SmartDashboard.putNumber("Set Position", 0);
+      SmartDashboard.putNumber("Set Velocity", 0);
+
+      // button to toggle between velocity and smart motion modes
+      SmartDashboard.putBoolean("Mode", true);
+    }
+  }
+  private void initPID(){
+     // init PID without outputting to dashboard
+    initPID(False);
+  }
+
+  /*
+   * Initializes Computer Vision
+   */
+  private void initVision(){
+
+    visionThread = new Thread(() -> {
+      // add USB camera, create server for SmartDashboard
+      UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
+      // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
+      usbCamera.setResolution(imgWidth, imgHeight);
+
+      CvSink cvSink = CameraServer.getVideo(); // grab images from camera
+      CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
+
+      Point upleft = new Point(0, 0);
+      Point downright = new Point(200, 200);
+      Scalar color = new Scalar(255, 255, 255);
+      Mat sourceMat = new Mat();
+      
+      while(true){ /// TODO: change condition later
+        if (cvSink.grabFrame(sourceMat) == 0) {
+          // Send the output the error.
+          outputStream.notifyError(cvSink.getError());
+          // skip the rest of the current iteration
+          continue;
+        }
+        Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY); //convert to grayscale
+        Imgproc.rectangle(sourceMat, upleft, downright, color, -1, 8, 0); // draw a rectangle
+        outputStream.putFrame(sourceMat); // put processed image to smartdashboard
+        // debug statements
+        SmartDashboard.putNumber("Image Mat Height", sourceMat.height());
+        SmartDashboard.putNumber("Image Mat Width", sourceMat.width());
+        SmartDashboard.putNumber("Image Mat Dims", sourceMat.dims());
+      }
+
+    });
+
+    visionThread.setDaemon(true); // set as daemon thread (low priority)
+    visionThread.start(); // start vision thread
   }
 
   // ------------------------------------------------------------------------------
