@@ -27,6 +27,7 @@ import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.core.Core;
 
 import com.ctre.phoenix.sensors.CANCoder;
 
@@ -87,6 +88,7 @@ public class Robot extends TimedRobot {
   
   // Smart Motion Coefficients
   public double maxVel = maxRPM; // rpm
+  public double minVel = 0; // rpm
   public double maxAcc = 1000;
   public double allowedErr = 0; // TODO: placeholder, not correct value
 
@@ -256,11 +258,11 @@ public class Robot extends TimedRobot {
   private void printDB(String name, String s){ // print 1 value
     SmartDashboard.putString(name, s);
   }
-  private void printDB(String[] names, double[] vals){ // print a list of values
-    for(int i = 0; i < length(names); i++){
-      printDB(names[i], vals[i]);
-    }
-  }
+  // private void printDB(String[] names, double[] vals){ // print a list of values
+  //   for(int i = 0; i < names.size(); i++){
+  //     printDB(names[i], vals[i]);
+  //   }
+  // }
 
   /*
    * Initializes PID constants to all motor controllers
@@ -359,7 +361,7 @@ public class Robot extends TimedRobot {
   }
   private void initPID(){
      // init PID without outputting to dashboard
-    initPID(False);
+    initPID(false);
   }
 
   /*
@@ -376,25 +378,42 @@ public class Robot extends TimedRobot {
       CvSink cvSink = CameraServer.getVideo(); // grab images from camera
       CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
-      Point upleft = new Point(0, 0);
-      Point downright = new Point(200, 200);
+      Point upleft = new Point(50, 50);
+      Point downright = new Point(100, 100);
       Scalar color = new Scalar(255, 255, 255);
       Mat sourceMat = new Mat();
+      Mat mask = new Mat();
+      Mat mask2 = new Mat();
+
+      // For HSV, hue range is [0,179]
+      // saturation range is [0,255]\// value range is [0,255]
+      Scalar redLower = new Scalar(155, 25, 0);
+      Scalar redUpper = new Scalar(180, 255, 255);
+
+      // 15 - 330 not red
+      Scalar redLower2 = new Scalar(0, 50, 50);
+      Scalar redUpper2 = new Scalar(15, 255, 255);
       
       while(true){ /// TODO: change condition later
         if (cvSink.grabFrame(sourceMat) == 0) {
           // Send the output the error.
           outputStream.notifyError(cvSink.getError());
           // skip the rest of the current iteration
-          continue;
+          continue; 
         }
-        Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY); //convert to grayscale
-        Imgproc.rectangle(sourceMat, upleft, downright, color, -1, 8, 0); // draw a rectangle
-        outputStream.putFrame(sourceMat); // put processed image to smartdashboard
+        Scalar avg = Core.mean(sourceMat);
         // debug statements
-        SmartDashboard.putNumber("Image Mat Height", sourceMat.height());
-        SmartDashboard.putNumber("Image Mat Width", sourceMat.width());
-        SmartDashboard.putNumber("Image Mat Dims", sourceMat.dims());
+        //System.out.println(avg);
+        //Imgproc.rectangle(sourceMat, upleft, downright, avg, -1, 8, 0); // draw a rectangle
+        Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2HSV); //convert to grayscale
+        Core.inRange(sourceMat, redLower, redUpper, mask);
+        Core.inRange(sourceMat, redLower2, redUpper2, mask2);
+        Core.bitwise_or(mask, mask2, mask);
+        // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
+        // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
+        //  480*640*CV_8UC3
+
+        outputStream.putFrame(mask); // put processed image to smartdashboard
       }
 
     });
