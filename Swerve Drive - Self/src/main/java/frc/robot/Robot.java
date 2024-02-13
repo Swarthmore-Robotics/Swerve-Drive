@@ -408,6 +408,7 @@ public class Robot extends TimedRobot {
       Scalar redLower2 = new Scalar(0, 50, 50);
       Scalar redUpper2 = new Scalar(15, 255, 255);
       
+      // TODO: time profile this
       while(true){ /// TODO: change condition later
         if (cvSink.grabFrame(sourceMat) == 0) {
           // Send the output the error.
@@ -432,7 +433,7 @@ public class Robot extends TimedRobot {
 
     });
 
-    visionThread.setDaemon(true); // set as daemon thread (low priority)
+    //visionThread.setDaemon(true); // set as daemon thread (low priority)
     visionThread.start(); // start vision thread
   }
   // ------------------------------------------------------------------------------
