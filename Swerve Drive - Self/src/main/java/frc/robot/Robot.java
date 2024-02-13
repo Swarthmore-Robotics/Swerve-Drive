@@ -101,13 +101,8 @@ public class Robot extends TimedRobot {
 
   // Smart Motion Coefficients
   public double maxVel = maxRPM; // rpm
-<<<<<<< HEAD
-  public double minVel = 0; // rpm
-  public double maxAcc = 1000;
-=======
   public double minVel = 0;
   public double maxAcc = 5000;
->>>>>>> e15f1613a7a420eda2ddbb9b364c724683808bfe
   public double allowedErr = 0; // TODO: placeholder, not correct value
 
   private final Timer m_timer = new Timer();
@@ -397,12 +392,16 @@ public class Robot extends TimedRobot {
       Scalar color = new Scalar(255, 255, 255);
       Mat sourceMat = new Mat();
       Mat mask = new Mat();
-      Mat mask2 = new Mat();
+      //Mat mask2 = new Mat();
 
       // For HSV, hue range is [0,179]
       // saturation range is [0,255]\// value range is [0,255]
-      Scalar redLower = new Scalar(155, 25, 0);
-      Scalar redUpper = new Scalar(180, 255, 255);
+      // Scalar redLower = new Scalar(155, 25, 0);
+      // Scalar redUpper = new Scalar(180, 255, 255);
+
+      // BGR thresholding
+      Scalar redLower = new Scalar(0, 0, 150);
+      Scalar redUpper = new Scalar(50, 50, 255);
 
       // 15 - 330 not red
       Scalar redLower2 = new Scalar(0, 50, 50);
@@ -410,26 +409,36 @@ public class Robot extends TimedRobot {
       
       // TODO: time profile this
       while(true){ /// TODO: change condition later
-        if (cvSink.grabFrame(sourceMat) == 0) {
-          // Send the output the error.
-          outputStream.notifyError(cvSink.getError());
-          // skip the rest of the current iteration
-          continue; 
-        }
-        Scalar avg = Core.mean(sourceMat);
-        // debug statements
-        //System.out.println(avg);
-        //Imgproc.rectangle(sourceMat, upleft, downright, avg, -1, 8, 0); // draw a rectangle
-        Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2HSV); //convert to grayscale
-        Core.inRange(sourceMat, redLower, redUpper, mask);
-        Core.inRange(sourceMat, redLower2, redUpper2, mask2);
-        Core.bitwise_or(mask, mask2, mask);
-        // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
-        // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
-        //  480*640*CV_8UC3
+        long startTime = System.currentTimeMillis();
+        // if (cvSink.grabFrame(sourceMat) == 0) {
+        //   // Send the output the error.
+        //   outputStream.notifyError(cvSink.getError());
+        //   // skip the rest of the current iteration
+        //   continue; 
+        // }
 
-        outputStream.putFrame(mask); // put processed image to smartdashboard
+        if (cvSink.grabFrame(sourceMat) != 0){
+          //Scalar avg = Core.mean(sourceMat);
+          // debug statements
+          //System.out.println(avg);
+          //Imgproc.rectangle(sourceMat, upleft, downright, avg, -1, 8, 0); // draw a rectangle
+          //Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2HSV); //convert to grayscale
+          //Core.inRange(sourceMat, redLower, redUpper, mask);
+          //Core.inRange(sourceMat, redLower2, redUpper2, mask2);
+          //Core.bitwise_or(mask, mask2, mask);
+          // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
+          // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
+          //  480*640*CV_8UC3
+
+          //Core.inRange(sourceMat, redLower, redUpper, mask);
+
+          outputStream.putFrame(sourceMat); // put processed image to smartdashboard
+          long endTime = System.currentTimeMillis();
+
+          System.out.println("Total execution time: " + (endTime - startTime));
+        }
       }
+    
 
     });
 
