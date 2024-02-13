@@ -27,6 +27,9 @@ import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
+
+import javax.management.Descriptor;
+
 import org.opencv.core.Core;
 
 import com.ctre.phoenix.sensors.CANCoder;
@@ -65,10 +68,10 @@ public class Robot extends TimedRobot {
   private CANSparkMax rotateMotor8 = new CANSparkMax(8, MotorType.kBrushless); 
   
   // wheel encoders
-  private CANCoder coder1 = new CANCoder(1);
-  private CANCoder coder2 = new CANCoder(2);
-  private CANCoder coder3 = new CANCoder(3);
-  private CANCoder coder4 = new CANCoder(4);
+  // private CANCoder coder1 = new CANCoder(1);
+  // private CANCoder coder2 = new CANCoder(2);
+  // private CANCoder coder3 = new CANCoder(3);
+  // private CANCoder coder4 = new CANCoder(4);
 
   private SparkMaxPIDController RM2_PidController;
   private SparkMaxPIDController RM4_PidController;
@@ -101,13 +104,8 @@ public class Robot extends TimedRobot {
 
   // Smart Motion Coefficients
   public double maxVel = maxRPM; // rpm
-<<<<<<< HEAD
-  public double minVel = 0; // rpm
-  public double maxAcc = 1000;
-=======
   public double minVel = 0;
   public double maxAcc = 5000;
->>>>>>> e15f1613a7a420eda2ddbb9b364c724683808bfe
   public double allowedErr = 0; // TODO: placeholder, not correct value
 
   private final Timer m_timer = new Timer();
@@ -116,20 +114,21 @@ public class Robot extends TimedRobot {
   private final double MAX_LINEAR_VELOCITY = 0.23;
   private final double MAX_ANGULAR_VELOCITY = 0.1;
   
-  public final double[] offset1 = new double[]{14.589844, -165.585938};
-  public final double[] offset2 = new double[]{51.064453, -130.253906};
-  public final double[] offset3 = new double[]{117.949219, -60.292969};
-  public final double[] offset4 = new double[]{117.949219, -60.292969};
+  // public final double[] offset1 = new double[]{14.589844, -165.585938};
+  // public final double[] offset2 = new double[]{51.064453, -130.253906};
+  // public final double[] offset3 = new double[]{117.949219, -60.292969};
+  // public final double[] offset4 = new double[]{117.949219, -60.292969};
 
-  public final double[] pinkoffset1 = new double[]{0,0};
-  public final double[] pinkoffset2 = new double[]{0,0};
-  public final double[] pinkoffset3 = new double[]{-90.500122, 89.499878};
-  public final double[] pinkoffset4 = new double[]{0,0};
+  // public final double[] pinkoffset1 = new double[]{0,0};
+  // public final double[] pinkoffset2 = new double[]{0,0};
+  // public final double[] pinkoffset3 = new double[]{-90.500122, 89.499878};
+  // public final double[] pinkoffset4 = new double[]{0,0};
 
+  /* should have two arrays of length 4: alpha to store abs offsets, delta to store rel offsets, alpha be final */
+  public double[] alpha_Motor = new double[]{14.589844, 51.064453, 117.949219, 117.949219};
   public double[] delta_Motor = new double[]{0.0, 0.0, 0.0, 0.0};
   //public double delta_Motor3 = 0.0;
 
-  /* should have two arrays of length 4: alpha to store abs offsets, delta to store rel offsets, alpha be final */
 
   // Vision
   private Thread visionThread;
@@ -291,7 +290,6 @@ public class Robot extends TimedRobot {
     RM4_Encoder = rotateMotor4.getEncoder();
     RM4_Encoder.setPositionConversionFactor(convFactor);
 
-    rotateMotor6.restoreFactoryDefaults();
     RM6_PidController = rotateMotor6.getPIDController();
     RM6_Encoder = rotateMotor6.getEncoder();
     RM6_Encoder.setPositionConversionFactor(convFactor);
@@ -371,6 +369,10 @@ public class Robot extends TimedRobot {
       // button to toggle between velocity and smart motion modes
       SmartDashboard.putBoolean("Mode", true);
     }
+    delta_Motor[0] = wrapEncoderValues((-1*coders[0].getAbsolutePosition()) - RM2_Encoder.getPosition());
+    delta_Motor[1] = wrapEncoderValues((-1*coders[1].getAbsolutePosition()) - RM4_Encoder.getPosition());
+    delta_Motor[2] = wrapEncoderValues((-1*coders[2].getAbsolutePosition()) - RM6_Encoder.getPosition());
+    delta_Motor[3] = wrapEncoderValues((-1*coders[3].getAbsolutePosition()) - RM8_Encoder.getPosition());
   }
 
   private void initPID(){
@@ -437,6 +439,49 @@ public class Robot extends TimedRobot {
   }
   // ------------------------------------------------------------------------------
 
+  private void set_desired(double desired_body, double DESIRED, double[] current_rel, double[] desired_rel1, boolean RightJoy) {
+
+    if (RightJoy == false) {
+      desired_body = DESIRED;
+      double[] desired_abs = new double[]{
+        wrapEncoderValues(desired_body - alpha_Motor[0]),
+        wrapEncoderValues(desired_body - alpha_Motor[1]),
+        wrapEncoderValues(desired_body - alpha_Motor[2]),
+        wrapEncoderValues(desired_body - alpha_Motor[3])
+      };
+  
+      double[] desired_rel = new double[]{
+        -(desired_abs[0] + delta_Motor[0]),
+        -(desired_abs[1] + delta_Motor[1]),
+        -(desired_abs[2] + delta_Motor[2]),
+        -(desired_abs[3] + delta_Motor[3])
+      };
+  
+      double[] res1 = wrapWheelCommand(desired_rel[0], current_rel[0]);
+      double[] res2 = wrapWheelCommand(desired_rel[1], current_rel[1]);
+      double[] res3 = wrapWheelCommand(desired_rel[2], current_rel[2]);
+      double[] res4 = wrapWheelCommand(desired_rel[3], current_rel[3]);
+  
+      desired_rel1[0] = res1[0];
+      desired_rel1[1] = res2[0];
+      desired_rel1[2] = res3[0];
+      desired_rel1[3] = res4[0];
+      }
+
+      else if (RightJoy == true) {
+        
+        double res1[] = wrapWheelCommand(135, current_rel[0]);
+        double res2[] = wrapWheelCommand(45, current_rel[1]);
+        double res3[] = wrapWheelCommand(315, current_rel[2]);
+        double res4[] = wrapWheelCommand(225, current_rel[3]);
+
+        desired_rel1[0] = res1[0];
+        desired_rel1[1] = res2[0];
+        desired_rel1[2] = res3[0];
+        desired_rel1[3] = res4[0];
+      }
+
+  }
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
@@ -459,8 +504,8 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("CANCODER 3", current_abs[2]);
     SmartDashboard.putNumber("CANCODER 4", current_abs[3]);
 
-    SmartDashboard.putNumber("RM6_Encoder.getPosition()", current_rel[0]); 
-    SmartDashboard.putNumber("hopefully close to CANCODER 3", wrapEncoderValues(-current_rel[0] - delta_Motor[0]));
+    SmartDashboard.putNumber("RM2_Encoder.getPosition()", current_rel[0]); 
+    SmartDashboard.putNumber("hopefully close to CANCODER 1", wrapEncoderValues(-current_rel[0] - delta_Motor[0]));
 
     SmartDashboard.putNumber("RM4_Encoder.getPosition()", current_rel[1]); 
     SmartDashboard.putNumber("hopefully close to CANCODER 2", wrapEncoderValues(-current_rel[1] - delta_Motor[1]));
@@ -469,61 +514,71 @@ public class Robot extends TimedRobot {
     SmartDashboard.putNumber("hopefully close to CANCODER 3", wrapEncoderValues(-current_rel[2] - delta_Motor[2]));
 
     SmartDashboard.putNumber("RM8_Encoder.getPosition()", current_rel[3]); 
-    SmartDashboard.putNumber("hopefully close to CANCODER 3", wrapEncoderValues(-current_rel[3] - delta_Motor[3]));
+    SmartDashboard.putNumber("hopefully close to CANCODER 4", wrapEncoderValues(-current_rel[3] - delta_Motor[3]));
 
-    /* original code:  
-    //double current_abs = coder3.getAbsolutePosition();
-    //double current_rel = RM6_Encoder.getPosition();
-    
-    //double joy = PS4joystick.getRightX();
-    //SmartDashboard.putNumber("joy", joy);
-    //double desired_body = joy * 400.0;
-    //SmartDashboard.putNumber("desired_body", desired_body);
-    double desired_body = 0; // this is the set value parameter to determine angle change
-    double desired_abs = wrapEncoderValues(desired_body - offset3[0]);
-    double desired_rel = -(desired_abs + delta_Motor3);
-    double[] res = wrapWheelCommand(desired_rel, current_rel);
-    desired_rel = res[0];
-    RM6_PidController.setReference(desired_rel, CANSparkMax.ControlType.kSmartMotion);
-    */
+    // Obtain filtered Joystick Inputs
+    filteredJoystickLeftY = filterJoystick(PS4joystick.getLeftY(), true);
+    filteredJoystickLeftX = filterJoystick(PS4joystick.getLeftX(), true);
+    filteredJoystickRightX = filterJoystick(PS4joystick.getRightX(), false);
+    // Define chassis speeds according to joystick inputs and new rotated orientation
+    // double Vx = MAX_LINEAR_VELOCITY * (-1) * filteredJoystickLeftY;
+    // SmartDashboard.putNumber("Vx",  Vx);
+    // double Vy = MAX_LINEAR_VELOCITY * (-1) * filteredJoystickLeftX;
+    // SmartDashboard.putNumber("Vy", Vy);
+    // double omega = MAX_ANGULAR_VELOCITY * (-1) * filteredJoystickRightX;
+    // SmartDashboard.putNumber("w (omega)", omega);
 
-    double joy = PS4joystick.getRightX();
+    double Vx = (-1) * highpassFilter(PS4joystick.getLeftY());
+    SmartDashboard.putNumber("Vx",  Vx);
+    double Vy = (-1) * highpassFilter(PS4joystick.getLeftX());
+    SmartDashboard.putNumber("Vy", Vy);
+    double omega = (-1) * highpassFilter(PS4joystick.getRightX());
 
-    //double desired_body = 90;
-    double desired_body = joy * 360.0;
-    SmartDashboard.putNumber("desired_body", desired_body);
+    SmartDashboard.putNumber("w (omega)", omega);
 
-    double[] desired_abs = new double[]{
-      wrapEncoderValues(desired_body - offset1[0]),
-      wrapEncoderValues(desired_body - offset2[0]),
-      wrapEncoderValues(desired_body - offset3[0]),
-      wrapEncoderValues(desired_body - offset4[0])
-    };
+    double Vr = mag(Vx, Vy);
+    SmartDashboard.putNumber("Vr", Vr);
 
-    double[] desired_rel = new double[]{
-      -(desired_abs[0] + delta_Motor[0]),
-      -(desired_abs[1] + delta_Motor[1]),
-      -(desired_abs[2] + delta_Motor[2]),
-      -(desired_abs[3] + delta_Motor[3])
-    };
+    double desired_body = 0;
+    double[] desired_rel1 = new double[]{0.0, 0.0, 0.0, 0.0};
 
+    if (omega == 0 & Vx != 0 & Vy != 0) {
+      // No rotation, CASE 1
+      SmartDashboard.putNumber("Case", 1);
+      double DESIRED = ((Math.atan2(Vy,Vx) * 180) / Math.PI);
+      SmartDashboard.putNumber("DESIRED_BEFORE", DESIRED);
 
-    double[] res1 = wrapWheelCommand(desired_rel[0], current_rel[0]);
-    double[] res2 =wrapWheelCommand(desired_rel[1], current_rel[2]);
-    double[] res3 =wrapWheelCommand(desired_rel[2], current_rel[2]);
-    double[] res4 =wrapWheelCommand(desired_rel[3], current_rel[3]);
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, false);
+      RM2_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
+      RM4_PidController.setReference(desired_rel1[1], CANSparkMax.ControlType.kSmartMotion);
+      RM6_PidController.setReference(desired_rel1[2], CANSparkMax.ControlType.kSmartMotion);
+      RM8_PidController.setReference(desired_rel1[3], CANSparkMax.ControlType.kSmartMotion);
+    }
 
-    double[] desired_rel1 = new double[]{
-      res1[0],
-      res2[0],
-      res3[0],
-      res4[0]
-    };
+    else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
+      // Rotate in place, CASE 3
+      SmartDashboard.putNumber("Case", 3);
 
-    RM2_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
-    RM4_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
-    RM6_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
-    RM8_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
+      set_desired(0, 0, current_rel, desired_rel1, true);
+      RM2_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
+      RM4_PidController.setReference(desired_rel1[1], CANSparkMax.ControlType.kSmartMotion);
+      RM6_PidController.setReference(desired_rel1[2], CANSparkMax.ControlType.kSmartMotion);
+      RM8_PidController.setReference(desired_rel1[3], CANSparkMax.ControlType.kSmartMotion);
+
+      if (omega > 0) {
+        // translateMotor1.set(res1[1] * omega * mag(x,y));
+        // translateMotor3.set(res2[1] * omega * mag(x,y));
+        // translateMotor5.set(res3[1] * omega * mag(x,y));
+        // translateMotor7.set(res4[1] * omega * mag(x,y));
+      }
+      else if (omega < 0) {
+        // translateMotor1.set(-1 * res1[1] * omega * mag(x,y));
+        // translateMotor3.set(-1 * res2[1] * omega * mag(x,y));
+        // translateMotor5.set(-1 * res3[1] * omega * mag(x,y));
+        // translateMotor7.set(-1 * res4[1] * omega * mag(x,y));
+      }
+    }
+
   }
 
   // public void teleopPeriodicOld() {
