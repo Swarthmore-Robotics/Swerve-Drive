@@ -128,8 +128,8 @@ public class Robot extends TimedRobot {
 
   // Vision
   private Thread visionThread;
-  private final int imgWidth = 640;
-  private final int imgHeight = 480;
+  private final int imgWidth = 320;
+  private final int imgHeight = 240;
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -442,7 +442,7 @@ public class Robot extends TimedRobot {
 
     });
 
-    //visionThread.setDaemon(true); // set as daemon thread (low priority)
+    visionThread.setPriority(1); // highest priority
     visionThread.start(); // start vision thread
   }
   // ------------------------------------------------------------------------------
