@@ -26,6 +26,7 @@ import edu.wpi.first.cscore.UsbCamera;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.core.Core;
 
@@ -390,6 +391,9 @@ public class Robot extends TimedRobot {
     Scalar redLower2 = new Scalar(0, 50, 50);
     Scalar redUpper2 = new Scalar(15, 255, 255);
 
+    // gaussian blue
+    Size gb = new Size(3, 3);
+
     visionThread = new Thread(() -> {
       // add USB camera, create server for SmartDashboard
       UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
@@ -401,30 +405,15 @@ public class Robot extends TimedRobot {
 
       Mat sourceMat = new Mat();
       Mat mask = new Mat();
-      //Mat mask2 = new Mat();
-
-      // For HSV, hue range is [0,179]
-      // saturation range is [0,255]\// value range is [0,255]
-      // Scalar redLower = new Scalar(155, 25, 0);
-      // Scalar redUpper = new Scalar(180, 255, 255);
 
       
       // TODO: time profile this
       while(true){ /// TODO: change condition later
         long startTime = System.currentTimeMillis();
-        // if (cvSink.grabFrame(sourceMat) == 0) {
-        //   // Send the output the error.
-        //   outputStream.notifyError(cvSink.getError());
-        //   // skip the rest of the current iteration
-        //   continue; 
-        // }
 
         if (cvSink.grabFrame(sourceMat) != 0){
           //Scalar avg = Core.mean(sourceMat);
-          // debug statements
-          //System.out.println(avg);
-          //Imgproc.rectangle(sourceMat, upleft, downright, avg, -1, 8, 0); // draw a rectangle
-          //Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY); //convert to grayscale
+          Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
           Core.inRange(sourceMat, redLower, redUpper, sourceMat);
           //Core.inRange(sourceMat, redLower2, redUpper2, mask2);
           //Core.bitwise_or(mask, mask2, mask);
