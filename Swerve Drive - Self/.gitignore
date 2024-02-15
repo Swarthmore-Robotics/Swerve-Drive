@@ -174,3 +174,7 @@ out/
 .gradle/
 bin/
 build/
+
+../.gradle/
+../bin/
+../build/
