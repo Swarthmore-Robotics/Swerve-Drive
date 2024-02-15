@@ -378,6 +378,18 @@ public class Robot extends TimedRobot {
    */
   private void initVision(){
 
+    Point upleft = new Point(50, 50);
+    Point downright = new Point(100, 100);
+    Scalar color = new Scalar(255, 255, 255);
+
+    // BGR thresholding
+    Scalar redLower = new Scalar(0, 0, 110);
+    Scalar redUpper = new Scalar(80, 80, 255);
+
+    // 15 - 330 not red
+    Scalar redLower2 = new Scalar(0, 50, 50);
+    Scalar redUpper2 = new Scalar(15, 255, 255);
+
     visionThread = new Thread(() -> {
       // add USB camera, create server for SmartDashboard
       UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
@@ -387,9 +399,6 @@ public class Robot extends TimedRobot {
       CvSink cvSink = CameraServer.getVideo(); // grab images from camera
       CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
-      Point upleft = new Point(50, 50);
-      Point downright = new Point(100, 100);
-      Scalar color = new Scalar(255, 255, 255);
       Mat sourceMat = new Mat();
       Mat mask = new Mat();
       //Mat mask2 = new Mat();
@@ -399,13 +408,6 @@ public class Robot extends TimedRobot {
       // Scalar redLower = new Scalar(155, 25, 0);
       // Scalar redUpper = new Scalar(180, 255, 255);
 
-      // BGR thresholding
-      Scalar redLower = new Scalar(0, 0, 150);
-      Scalar redUpper = new Scalar(50, 50, 255);
-
-      // 15 - 330 not red
-      Scalar redLower2 = new Scalar(0, 50, 50);
-      Scalar redUpper2 = new Scalar(15, 255, 255);
       
       // TODO: time profile this
       while(true){ /// TODO: change condition later
@@ -422,8 +424,8 @@ public class Robot extends TimedRobot {
           // debug statements
           //System.out.println(avg);
           //Imgproc.rectangle(sourceMat, upleft, downright, avg, -1, 8, 0); // draw a rectangle
-          //Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2HSV); //convert to grayscale
-          //Core.inRange(sourceMat, redLower, redUpper, mask);
+          //Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY); //convert to grayscale
+          Core.inRange(sourceMat, redLower, redUpper, sourceMat);
           //Core.inRange(sourceMat, redLower2, redUpper2, mask2);
           //Core.bitwise_or(mask, mask2, mask);
           // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
@@ -442,7 +444,7 @@ public class Robot extends TimedRobot {
 
     });
 
-    visionThread.setPriority(1); // highest priority
+    visionThread.setPriority(10); // highest priority
     visionThread.start(); // start vision thread
   }
   // ------------------------------------------------------------------------------
