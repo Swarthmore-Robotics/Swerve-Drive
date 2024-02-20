@@ -395,12 +395,11 @@ public class Robot extends TimedRobot {
     Scalar redLower = new Scalar(0, 0, 110);
     Scalar redUpper = new Scalar(80, 80, 255);
 
-    // 15 - 330 not red
-    Scalar redLower2 = new Scalar(0, 50, 50);
-    Scalar redUpper2 = new Scalar(15, 255, 255);
+    Scalar blueLower = new Scalar(70, 0, 0);
+    Scalar blueUpper = new Scalar(255, 100, 70);
 
     // gaussian blue
-    Size gb = new Size(3, 3);
+    Size gb = new Size(5, 5);
 
     visionThread = new Thread(() -> {
       // add USB camera, create server for SmartDashboard
@@ -412,8 +411,12 @@ public class Robot extends TimedRobot {
       CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
       Mat sourceMat = new Mat();
+      Mat destMat = new Mat();
+      Mat redMask = new Mat();
+      Mat blueMask = new Mat();
       Mat mask = new Mat();
-      Mat hierarchy = new Mat();
+      Mat black = Mat.zeros(imgHeight, imgWidth, 16);
+      // Mat hierarchy = new Mat();
       List<MatOfPoint> contours = new ArrayList<>();
       MatOfPoint2f[] contoursPoly;
       Rect[] boundRect;
@@ -426,40 +429,50 @@ public class Robot extends TimedRobot {
       // TODO: time profile this
       while(true){ /// TODO: change condition later
         long startTime = System.currentTimeMillis();
+        
 
         if (cvSink.grabFrame(sourceMat) != 0){
+          // destMat = new Mat();
           //Scalar avg = Core.mean(sourceMat);
-          Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY);
+          // Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY);
           Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
-          Imgproc.Canny(sourceMat, sourceMat, 10, 20);
-          Imgproc.findContours(sourceMat, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
+          Core.inRange(sourceMat, redLower, redUpper, redMask);
+          Core.inRange(sourceMat, blueLower, blueUpper, blueMask);
+          black.copyTo(sourceMat);
+          // Core.bitwise_or(redMask, blueMask, mask);
+          // System.out.println(black.size());
+          // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
+          sourceMat.setTo(new Scalar(255, 0, 0), blueMask);
+          sourceMat.setTo(new Scalar(0, 0, 255), redMask);
+          // Imgproc.Canny(sourceMat, sourceMat, 10, 20);
+          // Imgproc.findContours(sourceMat, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
 
           // not efficient whatsoever but tetsing for now
-          int N = contours.size();
-          contoursPoly = new MatOfPoint2f[N];
-          boundRect = new Rect[N];
-          centers = new Point[N];
-          radius = new float[N][1];
-          drawing = Mat.zeros(sourceMat.size(), CvType.CV_8UC3);
+          // int N = contours.size();
+          // contoursPoly = new MatOfPoint2f[N];
+          // boundRect = new Rect[N];
+          // centers = new Point[N];
+          // radius = new float[N][1];
+          // drawing = Mat.zeros(sourceMat.size(), CvType.CV_8UC3);
 
-          contoursPolyList = new ArrayList<>(contoursPoly.length);
-          if (contoursPoly.length > 0 & contoursPoly != null){
-            for (MatOfPoint2f poly : contoursPoly) {
-              if(poly != null){
-                contoursPolyList.add(new MatOfPoint(poly.toArray()));
-              }else{
-                contoursPolyList.add(null);
-              }
+          // contoursPolyList = new ArrayList<>(contoursPoly.length);
+          // if (contoursPoly.length > 0 & contoursPoly != null){
+          //   for (MatOfPoint2f poly : contoursPoly) {
+          //     if(poly != null){
+          //       contoursPolyList.add(new MatOfPoint(poly.toArray()));
+          //     }else{
+          //       contoursPolyList.add(null);
+          //     }
               
-            }
+          //   }
   
-            for(int i = 0; i < N; i++){
-              Scalar c = new Scalar(rng.nextInt(256), rng.nextInt(256), rng.nextInt(256));
-              Imgproc.drawContours(drawing, contoursPolyList, i, c);
-              Imgproc.rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), c, 2);
-              Imgproc.circle(drawing, centers[i], (int) radius[i][0], color, 2);
-            }
-          }
+          //   for(int i = 0; i < N; i++){
+          //     Scalar c = new Scalar(rng.nextInt(256), rng.nextInt(256), rng.nextInt(256));
+          //     Imgproc.drawContours(drawing, contoursPolyList, i, c);
+          //     Imgproc.rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), c, 2);
+          //     Imgproc.circle(drawing, centers[i], (int) radius[i][0], color, 2);
+          //   }
+          // }
           
 
           // Core.inRange(sourceMat, redLower, redUpper, sourceMat);
@@ -471,7 +484,7 @@ public class Robot extends TimedRobot {
 
           //Core.inRange(sourceMat, redLower, redUpper, mask);
 
-          outputStream.putFrame(drawing); // put processed image to smartdashboard
+          outputStream.putFrame(sourceMat); // put processed image to smartdashboard
           long endTime = System.currentTimeMillis();
 
           System.out.println("Total execution time: " + (endTime - startTime));
