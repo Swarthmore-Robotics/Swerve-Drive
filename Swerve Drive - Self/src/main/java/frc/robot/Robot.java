@@ -384,11 +384,11 @@ public class Robot extends TimedRobot {
     Scalar yellowColor = new Scalar(0, 255, 255);
 
     // BGR thresholding values
-    Scalar redLower = new Scalar(0, 0, 100);
-    Scalar redUpper = new Scalar(80, 80, 255);
+    Scalar redLower = new Scalar(0, 0, 55);
+    Scalar redUpper = new Scalar(40, 20, 255);
     
-    Scalar yellowLower = new Scalar(50, 155, 170);
-    Scalar yellowUpper = new Scalar(140, 190, 230);
+    Scalar yellowLower = new Scalar(0, 155, 175);
+    Scalar yellowUpper = new Scalar(140, 200, 230);
 
 
     // gaussian blur
@@ -403,12 +403,13 @@ public class Robot extends TimedRobot {
       CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
       Mat sourceMat = new Mat();
-      // Mat destMat = new Mat();
       Mat redMask = new Mat();
       Mat yellowMask = new Mat();
       // Mat mask = new Mat();
       Mat black = Mat.zeros(imgHeight, imgWidth, 16);
       // Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5.0, 5.0));
+      List<MatOfPoint> contours = new ArrayList<>();
+      Mat hierarchy = new Mat();
 
       // ~40 ms per loop
       while(true){ /// TODO: change condition later
@@ -425,13 +426,21 @@ public class Robot extends TimedRobot {
           // Imgproc.morphologyEx(redMask, redMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
 
           // yellow thresholding
-          Core.inRange(sourceMat, yellowLower, yellowUpper, yellowMask);
+          // Core.inRange(sourceMat, yellowLower, yellowUpper, yellowMask);
           // Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
 
-          // output results
+          contours = new ArrayList<>();
+          Imgproc.findContours(redMask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+          // System.out.println(contours.size());
           black.copyTo(sourceMat);
-          sourceMat.setTo(yellowColor, yellowMask);
-          sourceMat.setTo(redColor, redMask);
+          for (int i = 0; i < contours.size(); i++) {
+            Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8, hierarchy, 0, new Point());
+          }
+
+          // output results
+          // black.copyTo(sourceMat);
+          // sourceMat.setTo(yellowColor, yellowMask);
+          // sourceMat.setTo(redColor, redMask);
 
           outputStream.putFrame(sourceMat); // put processed image to smartdashboard
           long endTime = System.currentTimeMillis();
