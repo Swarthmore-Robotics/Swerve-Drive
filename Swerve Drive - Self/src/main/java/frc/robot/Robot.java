@@ -48,94 +48,105 @@ public class Robot extends TimedRobot {
   public final int WHEEL_BR = 2;
   public final int WHEEL_BL = 3;
 
-   // for example 
+   // wheel encoders
   private CANCoder[] coders = new CANCoder[] {
     new CANCoder (1),
     new CANCoder(2),
     new CANCoder(3),
     new CANCoder (4),
   };
-  // all of this gets stuffed into arrays
   
-  // wheel motors
-  private CANSparkMax translateMotor1 = new CANSparkMax(1, MotorType.kBrushless); // translation - odds
-  private CANSparkMax rotateMotor2 = new CANSparkMax(2, MotorType.kBrushless); // rotation - evens
-  private CANSparkMax translateMotor3 = new CANSparkMax(3, MotorType.kBrushless);
-  private CANSparkMax rotateMotor4 = new CANSparkMax(4, MotorType.kBrushless); 
-  private CANSparkMax translateMotor5 = new CANSparkMax(5, MotorType.kBrushless); 
-  private CANSparkMax rotateMotor6 = new CANSparkMax(6, MotorType.kBrushless);
-  private CANSparkMax translateMotor7 = new CANSparkMax(7, MotorType.kBrushless);
-  private CANSparkMax rotateMotor8 = new CANSparkMax(8, MotorType.kBrushless); 
-  
-  // wheel encoders
-  // private CANCoder coder1 = new CANCoder(1);
-  // private CANCoder coder2 = new CANCoder(2);
-  // private CANCoder coder3 = new CANCoder(3);
-  // private CANCoder coder4 = new CANCoder(4);
+  // translation motors (odd)
+  private CANSparkMax[] TranslationMotors = new CANSparkMax[] {
+    new CANSparkMax(1, MotorType.kBrushless),
+    new CANSparkMax(3, MotorType.kBrushless),
+    new CANSparkMax(5, MotorType.kBrushless),
+    new CANSparkMax(7, MotorType.kBrushless), 
+  };
 
+  // rotation motors (even)
+  private CANSparkMax[] RotationMotors = new CANSparkMax[] {
+    new CANSparkMax(2, MotorType.kBrushless),
+    new CANSparkMax(4, MotorType.kBrushless),
+    new CANSparkMax(6, MotorType.kBrushless),
+    new CANSparkMax(8, MotorType.kBrushless), 
+  };
+
+  // TM Pid Controllers
+  private SparkMaxPIDController TM1_PidController;
+  private SparkMaxPIDController TM3_PidController;
+  private SparkMaxPIDController TM5_PidController;
+  private SparkMaxPIDController TM7_PidController;
+  
+  // RM Pid Controllers
   private SparkMaxPIDController RM2_PidController;
   private SparkMaxPIDController RM4_PidController;
   private SparkMaxPIDController RM6_PidController;
   private SparkMaxPIDController RM8_PidController;
 
-  private SparkMaxPIDController TM1_PidController;
-  private SparkMaxPIDController TM3_PidController;
-  private SparkMaxPIDController TM5_PidController;
-  private SparkMaxPIDController TM7_PidController;
-
+  // RM Relative Encoders
   private RelativeEncoder RM2_Encoder;
   private RelativeEncoder RM4_Encoder;
   private RelativeEncoder RM6_Encoder;
   private RelativeEncoder RM8_Encoder;
-  private double convFactor = 5.62279270244;
-  // private double convFactor = 1;
+
+  // TM Relative Encoders
+  private RelativeEncoder TM1_Encoder;
+  private RelativeEncoder TM3_Encoder;
+  private RelativeEncoder TM5_Encoder;
+  private RelativeEncoder TM7_Encoder;
+
+  private double rotConvFactor = 5.62279270244;
+  private double transConvFactor = 0.1875; // RPM
+  // private double transConvFactor = 0.0014961835; // m/s
 
   // joystick controller
   private final PS4Controller PS4joystick = new PS4Controller(0); // 0 is the USB Port to be used as indicated on the Driver Station
   private double filteredJoystickLeftY;
   private double filteredJoystickLeftX;
-  // private double filteredJoystickRightY;
   private double filteredJoystickRightX;
 
-  // PID Constants
-  public double kP = 0.0001;
-  // public double kI = 1e-9;
-  public double kI = 0;
-  public double kD = 0.0003;
-  // public double kD = 0;
-  public double kIz = 0; 
-  public double kFF = 0; 
-  public double kMaxOutput = 1; 
-  public double kMinOutput = -1;
-  public double maxRPM = 11000;
+  // Rotation Motor PID Constants
+  public double Rot_kP = 0.00008;
+  public double Rot_kI = 0;
+  public double Rot_kD = 0.0004;
+  public double Rot_kIz = 0; 
+  public double Rot_kFF = 0; 
+  public double Rot_kMaxOutput = 1; 
+  public double Rot_kMinOutput = -1;
+  public double Rot_maxRPM = 11000;
 
-  // Smart Motion Coefficients
-  public double maxVel = maxRPM; // rpm
-  public double minVel = 0;
-  public double maxAcc = 30000;
-  public double allowedErr = 0.5; // TODO: placeholder, not correct value
+  // Rotation Motor Smart Motion Coefficients
+  public double Rot_maxVel = Rot_maxRPM; // rpm
+  public double Rot_minVel = 0;
+  public double Rot_maxAcc = 30000;
+  public double Rot_allowedErr = 0.8; 
+
+  // Translation Motor PID Constants
+  public double Trans_kP = 0.001;
+  public double Trans_kI = 1e-6;
+  public double Trans_kD = 0;
+  public double Trans_kIz = 0; 
+  public double Trans_kFF = 0; 
+  public double Trans_kMaxOutput = 1; 
+  public double Trans_kMinOutput = -1;
+  public double Trans_maxRPM = 11000;
+
+  // Translation Motor Smart Motion Coefficients
+  public double Trans_maxVel = Trans_maxRPM; // rpm
+  public double Trans_minVel = 0;
+  public double Trans_maxAcc = 11000;
+  public double Trans_allowedErr = 0.5; 
 
   private final Timer m_timer = new Timer();
 
-  // encoder offset variables
   private final double MAX_LINEAR_VELOCITY = 0.23;
   private final double MAX_ANGULAR_VELOCITY = 0.1;
-  
-  // public final double[] offset1 = new double[]{14.589844, -165.585938};
-  // public final double[] offset2 = new double[]{51.064453, -130.253906};
-  // public final double[] offset3 = new double[]{117.949219, -60.292969};
-  // public final double[] offset4 = new double[]{117.949219, -60.292969};
 
-  // public final double[] pinkoffset1 = new double[]{0,0};
-  // public final double[] pinkoffset2 = new double[]{0,0};
-  // public final double[] pinkoffset3 = new double[]{-90.500122, 89.499878};
-  // public final double[] pinkoffset4 = new double[]{0,0};
-
-  /* should have two arrays of length 4: alpha to store abs offsets, delta to store rel offsets, alpha be final */
-  public double[] alpha_Motor = new double[]{14.589844, 51.064453, 117.949219, 117.949219};
+  // encoder offset variables, should have two arrays of length 4: 
+  // alpha to store abs offsets, delta to store rel offsets, alpha be final 
+  public final double[] alpha_Motor = new double[]{14.589844, 51.064453, 117.949219, 124.365234};
   public double[] delta_Motor = new double[]{0.0, 0.0, 0.0, 0.0};
-  //public double delta_Motor3 = 0.0;
-
 
   // Vision
   private Thread visionThread;
@@ -287,139 +298,151 @@ public class Robot extends TimedRobot {
   private void initPID(boolean verbose){
 
     // PID controllers
-    RM2_PidController = rotateMotor2.getPIDController();
-    RM2_Encoder = rotateMotor2.getEncoder();
-    RM2_Encoder.setPositionConversionFactor(convFactor);
+    RM2_PidController = RotationMotors[WHEEL_FL].getPIDController();
+    RM2_Encoder = RotationMotors[WHEEL_FL].getEncoder();
+    RM2_Encoder.setPositionConversionFactor(rotConvFactor);
 
-    RM4_PidController = rotateMotor4.getPIDController();
-    RM4_Encoder = rotateMotor4.getEncoder();
-    RM4_Encoder.setPositionConversionFactor(convFactor);
+    RM4_PidController = RotationMotors[WHEEL_FR].getPIDController();
+    RM4_Encoder = RotationMotors[WHEEL_FR].getEncoder();
+    RM4_Encoder.setPositionConversionFactor(rotConvFactor);
 
-    RM6_PidController = rotateMotor6.getPIDController();
-    RM6_Encoder = rotateMotor6.getEncoder();
-    RM6_Encoder.setPositionConversionFactor(convFactor);
+    RM6_PidController = RotationMotors[WHEEL_BR].getPIDController();
+    RM6_Encoder = RotationMotors[WHEEL_BR].getEncoder();
+    RM6_Encoder.setPositionConversionFactor(rotConvFactor);
 
-    RM8_PidController = rotateMotor8.getPIDController();
-    RM8_Encoder = rotateMotor8.getEncoder();
-    RM8_Encoder.setPositionConversionFactor(convFactor);
+    RM8_PidController = RotationMotors[WHEEL_BL].getPIDController();
+    RM8_Encoder = RotationMotors[WHEEL_BL].getEncoder();
+    RM8_Encoder.setPositionConversionFactor(rotConvFactor);
 
-    TM1_PidController = translateMotor1.getPIDController();
-    TM3_PidController = translateMotor3.getPIDController();
-    TM5_PidController = translateMotor5.getPIDController();
-    TM7_PidController = translateMotor7.getPIDController();
+    TM1_PidController = TranslationMotors[WHEEL_FL].getPIDController();
+    TM1_Encoder = TranslationMotors[WHEEL_FL].getEncoder();
+    TM1_Encoder.setPositionConversionFactor(transConvFactor);
 
-    RM2_PidController.setP(kP);
-    RM2_PidController.setI(kI);
-    RM2_PidController.setD(kD);
-    RM2_PidController.setIZone(kIz);
-    RM2_PidController.setFF(kFF);
-    RM2_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    TM3_PidController = TranslationMotors[WHEEL_FR].getPIDController();
+    TM3_Encoder = TranslationMotors[WHEEL_FR].getEncoder();
+    TM3_Encoder.setPositionConversionFactor(transConvFactor);
+    
+    TM5_PidController = TranslationMotors[WHEEL_BR].getPIDController();
+    TM5_Encoder = TranslationMotors[WHEEL_BR].getEncoder();
+    TM5_Encoder.setPositionConversionFactor(transConvFactor);
+    
+    TM7_PidController = TranslationMotors[WHEEL_BL].getPIDController();
+    TM7_Encoder = TranslationMotors[WHEEL_BL].getEncoder();
+    TM7_Encoder.setPositionConversionFactor(transConvFactor);
 
-    RM4_PidController.setP(kP);
-    RM4_PidController.setI(kI);
-    RM4_PidController.setD(kD);
-    RM4_PidController.setIZone(kIz);
-    RM4_PidController.setFF(kFF);
-    RM4_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    RM2_PidController.setP(Rot_kP);
+    RM2_PidController.setI(Rot_kI);
+    RM2_PidController.setD(Rot_kD);
+    RM2_PidController.setIZone(Rot_kIz);
+    RM2_PidController.setFF(Rot_kFF);
+    RM2_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
 
-    RM6_PidController.setP(kP);
-    RM6_PidController.setI(kI);
-    RM6_PidController.setD(kD);
-    RM6_PidController.setIZone(kIz);
-    RM6_PidController.setFF(kFF);
-    RM6_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    RM4_PidController.setP(Rot_kP);
+    RM4_PidController.setI(Rot_kI);
+    RM4_PidController.setD(Rot_kD);
+    RM4_PidController.setIZone(Rot_kIz);
+    RM4_PidController.setFF(Rot_kFF);
+    RM4_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
 
-    RM8_PidController.setP(kP);
-    RM8_PidController.setI(kI);
-    RM8_PidController.setD(kD);
-    RM8_PidController.setIZone(kIz);
-    RM8_PidController.setFF(kFF);
-    RM8_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    RM6_PidController.setP(Rot_kP);
+    RM6_PidController.setI(Rot_kI);
+    RM6_PidController.setD(Rot_kD);
+    RM6_PidController.setIZone(Rot_kIz);
+    RM6_PidController.setFF(Rot_kFF);
+    RM6_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
 
-    TM1_PidController.setP(kP);
-    TM1_PidController.setI(kI);
-    TM1_PidController.setD(kD);
-    TM1_PidController.setIZone(kIz);
-    TM1_PidController.setFF(kFF);
-    TM1_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    RM8_PidController.setP(Rot_kP);
+    RM8_PidController.setI(Rot_kI);
+    RM8_PidController.setD(Rot_kD);
+    RM8_PidController.setIZone(Rot_kIz);
+    RM8_PidController.setFF(Rot_kFF);
+    RM8_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
 
-    TM3_PidController.setP(kP);
-    TM3_PidController.setI(kI);
-    TM3_PidController.setD(kD);
-    TM3_PidController.setIZone(kIz);
-    TM3_PidController.setFF(kFF);
-    TM3_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    TM1_PidController.setP(Trans_kP);
+    TM1_PidController.setI(Trans_kI);
+    TM1_PidController.setD(Trans_kD);
+    TM1_PidController.setIZone(Trans_kIz);
+    TM1_PidController.setFF(Trans_kFF);
+    TM1_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
 
-    TM5_PidController.setP(kP);
-    TM5_PidController.setI(kI);
-    TM5_PidController.setD(kD);
-    TM5_PidController.setIZone(kIz);
-    TM5_PidController.setFF(kFF);
-    TM5_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    TM3_PidController.setP(Trans_kP);
+    TM3_PidController.setI(Trans_kI);
+    TM3_PidController.setD(Trans_kD);
+    TM3_PidController.setIZone(Trans_kIz);
+    TM3_PidController.setFF(Trans_kFF);
+    TM3_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
 
-    TM7_PidController.setP(kP);
-    TM7_PidController.setI(kI);
-    TM7_PidController.setD(kD);
-    TM7_PidController.setIZone(kIz);
-    TM7_PidController.setFF(kFF);
-    TM7_PidController.setOutputRange(kMinOutput, kMaxOutput);
+    TM5_PidController.setP(Trans_kP);
+    TM5_PidController.setI(Trans_kI);
+    TM5_PidController.setD(Trans_kD);
+    TM5_PidController.setIZone(Trans_kIz);
+    TM5_PidController.setFF(Trans_kFF);
+    TM5_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
+
+    TM7_PidController.setP(Trans_kP);
+    TM7_PidController.setI(Trans_kI);
+    TM7_PidController.setD(Trans_kD);
+    TM7_PidController.setIZone(Trans_kIz);
+    TM7_PidController.setFF(Trans_kFF);
+    TM7_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
 
     int smartMotionSlot = 0;
-    RM2_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM2_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM2_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM2_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+    RM2_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
+    RM2_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
+    RM2_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
+    RM2_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
 
-    RM4_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM4_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM4_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM4_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+    RM4_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
+    RM4_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
+    RM4_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
+    RM4_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
 
-    RM6_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM6_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM6_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM6_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+    RM6_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
+    RM6_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
+    RM6_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
+    RM6_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
 
-    RM8_PidController.setSmartMotionMaxVelocity(maxVel, smartMotionSlot);
-    RM8_PidController.setSmartMotionMinOutputVelocity(minVel, smartMotionSlot);
-    RM8_PidController.setSmartMotionMaxAccel(maxAcc, smartMotionSlot);
-    RM8_PidController.setSmartMotionAllowedClosedLoopError(allowedErr, smartMotionSlot);
+    RM8_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
+    RM8_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
+    RM8_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
+    RM8_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
 
-    translateMotor1.setSmartCurrentLimit(40);
-    translateMotor3.setSmartCurrentLimit(40);
-    translateMotor5.setSmartCurrentLimit(40);
-    translateMotor7.setSmartCurrentLimit(40);
+    TranslationMotors[WHEEL_FL].setSmartCurrentLimit(40);
+    TranslationMotors[WHEEL_FR].setSmartCurrentLimit(40);
+    TranslationMotors[WHEEL_BR].setSmartCurrentLimit(40);
+    TranslationMotors[WHEEL_BL].setSmartCurrentLimit(40);
 
-    rotateMotor2.setSmartCurrentLimit(20);
-    rotateMotor4.setSmartCurrentLimit(20);
-    rotateMotor6.setSmartCurrentLimit(20);
-    rotateMotor8.setSmartCurrentLimit(20);
+    RotationMotors[WHEEL_FL].setSmartCurrentLimit(20);
+    RotationMotors[WHEEL_FR].setSmartCurrentLimit(20);
+    RotationMotors[WHEEL_BR].setSmartCurrentLimit(20);
+    RotationMotors[WHEEL_BL].setSmartCurrentLimit(20);
 
     if(verbose){
       // display PID coefficients on SmartDashboard
-      SmartDashboard.putNumber("P Gain", kP);
-      SmartDashboard.putNumber("I Gain", kI);
-      SmartDashboard.putNumber("D Gain", kD);
-      SmartDashboard.putNumber("I Zone", kIz);
-      SmartDashboard.putNumber("Feed Forward", kFF);
-      SmartDashboard.putNumber("Max Output", kMaxOutput);
-      SmartDashboard.putNumber("Min Output", kMinOutput);
+      // SmartDashboard.putNumber("P Gain", kP);
+      // SmartDashboard.putNumber("I Gain", kI);
+      // SmartDashboard.putNumber("D Gain", kD);
+      // SmartDashboard.putNumber("I Zone", kIz);
+      // SmartDashboard.putNumber("Feed Forward", kFF);
+      // SmartDashboard.putNumber("Max Output", kMaxOutput);
+      // SmartDashboard.putNumber("Min Output", kMinOutput);
 
-      // display Smart Motion coefficients
-      SmartDashboard.putNumber("Max Velocity", maxVel);
-      SmartDashboard.putNumber("Min Velocity", minVel);
-      SmartDashboard.putNumber("Max Acceleration", maxAcc);
-      SmartDashboard.putNumber("Allowed Closed Loop Error", allowedErr);
-      SmartDashboard.putNumber("Set Position", 0);
-      SmartDashboard.putNumber("Set Velocity", 0);
+      // // display Smart Motion coefficients
+      // SmartDashboard.putNumber("Max Velocity", maxVel);
+      // SmartDashboard.putNumber("Min Velocity", minVel);
+      // SmartDashboard.putNumber("Max Acceleration", maxAcc);
+      // SmartDashboard.putNumber("Allowed Closed Loop Error", allowedErr);
+      // SmartDashboard.putNumber("Set Position", 0);
+      // SmartDashboard.putNumber("Set Velocity", 0);
 
       // button to toggle between velocity and smart motion modes
       SmartDashboard.putBoolean("Mode", true);
     }
-    delta_Motor[0] = wrapEncoderValues((-1*coders[0].getAbsolutePosition()) - RM2_Encoder.getPosition());
-    delta_Motor[1] = wrapEncoderValues((-1*coders[1].getAbsolutePosition()) - RM4_Encoder.getPosition());
-    delta_Motor[2] = wrapEncoderValues((-1*coders[2].getAbsolutePosition()) - RM6_Encoder.getPosition());
-    delta_Motor[3] = wrapEncoderValues((-1*coders[3].getAbsolutePosition()) - RM8_Encoder.getPosition());
+
+    delta_Motor[0] = wrapEncoderValues((-1*coders[WHEEL_FL].getAbsolutePosition()) - RM2_Encoder.getPosition());
+    delta_Motor[1] = wrapEncoderValues((-1*coders[WHEEL_FR].getAbsolutePosition()) - RM4_Encoder.getPosition());
+    delta_Motor[2] = wrapEncoderValues((-1*coders[WHEEL_BR].getAbsolutePosition()) - RM6_Encoder.getPosition());
+    delta_Motor[3] = wrapEncoderValues((-1*coders[WHEEL_BL].getAbsolutePosition()) - RM8_Encoder.getPosition());
   }
 
   private void initPID(){
@@ -489,108 +512,108 @@ public class Robot extends TimedRobot {
   private void set_desired(double[] desired_body, double[] DESIRED, double[] current_rel, double[] desired_rel1, double[] desired_translation, int CASE) {
 
     if (CASE == 1) {
-      desired_body[0] = DESIRED[0];
-      desired_body[1] = DESIRED[1];
-      desired_body[2] = DESIRED[2];
-      desired_body[3] = DESIRED[3];
+      desired_body[WHEEL_FL] = DESIRED[WHEEL_FL];
+      desired_body[WHEEL_FR] = DESIRED[WHEEL_FR];
+      desired_body[WHEEL_BR] = DESIRED[WHEEL_BR];
+      desired_body[WHEEL_BL] = DESIRED[WHEEL_BL];
 
       double[] desired_abs = new double[]{
-        wrapEncoderValues(desired_body[0] - alpha_Motor[0]),
-        wrapEncoderValues(desired_body[1] - alpha_Motor[1]),
-        wrapEncoderValues(desired_body[2] - alpha_Motor[2]),
-        wrapEncoderValues(desired_body[3] - alpha_Motor[3])
+        wrapEncoderValues(desired_body[WHEEL_FL] - alpha_Motor[WHEEL_FL]),
+        wrapEncoderValues(desired_body[WHEEL_FR] - alpha_Motor[WHEEL_FR]),
+        wrapEncoderValues(desired_body[WHEEL_BR] - alpha_Motor[WHEEL_BR]),
+        wrapEncoderValues(desired_body[WHEEL_BL] - alpha_Motor[WHEEL_BL])
       };
   
       double[] desired_rel = new double[]{
-        -(desired_abs[0] + delta_Motor[0]),
-        -(desired_abs[1] + delta_Motor[1]),
-        -(desired_abs[2] + delta_Motor[2]),
-        -(desired_abs[3] + delta_Motor[3])
+        -(desired_abs[WHEEL_FL] + delta_Motor[WHEEL_FL]),
+        -(desired_abs[WHEEL_FR] + delta_Motor[WHEEL_FR]),
+        -(desired_abs[WHEEL_BR] + delta_Motor[WHEEL_BR]),
+        -(desired_abs[WHEEL_BL] + delta_Motor[WHEEL_BL])
       };
   
-      double[] res1 = wrapWheelCommand(desired_rel[0], current_rel[0]);
-      double[] res2 = wrapWheelCommand(desired_rel[1], current_rel[1]);
-      double[] res3 = wrapWheelCommand(desired_rel[2], current_rel[2]);
-      double[] res4 = wrapWheelCommand(desired_rel[3], current_rel[3]);
+      double[] res1 = wrapWheelCommand(desired_rel[WHEEL_FL], current_rel[WHEEL_FL]);
+      double[] res2 = wrapWheelCommand(desired_rel[WHEEL_FR], current_rel[WHEEL_FR]);
+      double[] res3 = wrapWheelCommand(desired_rel[WHEEL_BR], current_rel[WHEEL_BR]);
+      double[] res4 = wrapWheelCommand(desired_rel[WHEEL_BL], current_rel[WHEEL_BL]);
   
-      desired_rel1[0] = res1[0];
-      desired_rel1[1] = res2[0];
-      desired_rel1[2] = res3[0];
-      desired_rel1[3] = res4[0];
+      desired_rel1[WHEEL_FL] = res1[0];
+      desired_rel1[WHEEL_FR] = res2[0];
+      desired_rel1[WHEEL_BR] = res3[0];
+      desired_rel1[WHEEL_BL] = res4[0];
       }
 
       if (CASE == 2) {
-        desired_body[0] = DESIRED[0];
-        desired_body[1] = DESIRED[1];
-        desired_body[2] = DESIRED[2];
-        desired_body[3] = DESIRED[3];
+        desired_body[WHEEL_FL] = DESIRED[WHEEL_FL];
+        desired_body[WHEEL_FR] = DESIRED[WHEEL_FR];
+        desired_body[WHEEL_BR] = DESIRED[WHEEL_BR];
+        desired_body[WHEEL_BL] = DESIRED[WHEEL_BL];
 
         double[] desired_abs = new double[]{
-          wrapEncoderValues(desired_body[0] - alpha_Motor[0]),
-          wrapEncoderValues(desired_body[1] - alpha_Motor[1]),
-          wrapEncoderValues(desired_body[2] - alpha_Motor[2]),
-          wrapEncoderValues(desired_body[3] - alpha_Motor[3])
+          wrapEncoderValues(desired_body[WHEEL_FL] - alpha_Motor[WHEEL_FL]),
+          wrapEncoderValues(desired_body[WHEEL_FR] - alpha_Motor[WHEEL_FR]),
+          wrapEncoderValues(desired_body[WHEEL_BR] - alpha_Motor[WHEEL_BR]),
+          wrapEncoderValues(desired_body[WHEEL_BL] - alpha_Motor[WHEEL_BL])
         };
     
         double[] desired_rel = new double[]{
-          -(desired_abs[0] + delta_Motor[0]),
-          -(desired_abs[1] + delta_Motor[1]),
-          -(desired_abs[2] + delta_Motor[2]),
-          -(desired_abs[3] + delta_Motor[3])
+          -(desired_abs[WHEEL_FL] + delta_Motor[WHEEL_FL]),
+          -(desired_abs[WHEEL_FR] + delta_Motor[WHEEL_FR]),
+          -(desired_abs[WHEEL_BR] + delta_Motor[WHEEL_BR]),
+          -(desired_abs[WHEEL_BL] + delta_Motor[WHEEL_BL])
         };
     
-        double[] res1 = wrapWheelCommand(desired_rel[0], current_rel[0]);
-        double[] res2 = wrapWheelCommand(desired_rel[1], current_rel[1]);
-        double[] res3 = wrapWheelCommand(desired_rel[2], current_rel[2]);
-        double[] res4 = wrapWheelCommand(desired_rel[3], current_rel[3]);
+        double[] res1 = wrapWheelCommand(desired_rel[WHEEL_FL], current_rel[WHEEL_FL]);
+        double[] res2 = wrapWheelCommand(desired_rel[WHEEL_FR], current_rel[WHEEL_FR]);
+        double[] res3 = wrapWheelCommand(desired_rel[WHEEL_BR], current_rel[WHEEL_BR]);
+        double[] res4 = wrapWheelCommand(desired_rel[WHEEL_BL], current_rel[WHEEL_BL]);
     
-        desired_rel1[0] = res1[0];
-        desired_rel1[1] = res2[0];
-        desired_rel1[2] = res3[0];
-        desired_rel1[3] = res4[0];
+        desired_rel1[WHEEL_FL] = res1[0];
+        desired_rel1[WHEEL_FR] = res2[0];
+        desired_rel1[WHEEL_BR] = res3[0];
+        desired_rel1[WHEEL_BL] = res4[0];
 
-        desired_translation[0] = res1[1];
-        desired_translation[1] = res2[1];
-        desired_translation[2] = res3[1];
-        desired_translation[3] = res4[1];
+        desired_translation[WHEEL_FL] = res1[1];
+        desired_translation[WHEEL_FR] = res2[1];
+        desired_translation[WHEEL_BR] = res3[1];
+        desired_translation[WHEEL_BL] = res4[1];
 
       }
 
       else if (CASE == 3) {
 
-        desired_body[0] = -1*DESIRED[0];
-        desired_body[1] = -1*DESIRED[1];
-        desired_body[2] = -1*DESIRED[2];
-        desired_body[3] = -1*DESIRED[3];
+        desired_body[WHEEL_FL] = -1*DESIRED[WHEEL_FL];
+        desired_body[WHEEL_FR] = -1*DESIRED[WHEEL_FR];
+        desired_body[WHEEL_BR] = -1*DESIRED[WHEEL_BR];
+        desired_body[WHEEL_BL] = -1*DESIRED[WHEEL_BL];
 
         double[] desired_abs = new double[]{
-          wrapEncoderValues(desired_body[0] - alpha_Motor[0]),
-          wrapEncoderValues(desired_body[1] + 90 - alpha_Motor[1]),
-          wrapEncoderValues(desired_body[2] + 180 - alpha_Motor[2]),
-          wrapEncoderValues(desired_body[3] + 270 - alpha_Motor[3])
+          wrapEncoderValues(desired_body[WHEEL_FL] - alpha_Motor[WHEEL_FL]),
+          wrapEncoderValues(desired_body[WHEEL_FR] + 90 - alpha_Motor[WHEEL_FR]),
+          wrapEncoderValues(desired_body[WHEEL_BR] + 180 - alpha_Motor[WHEEL_BR]),
+          wrapEncoderValues(desired_body[WHEEL_BL] + 270 - alpha_Motor[WHEEL_BL])
         };
     
         double[] desired_rel = new double[]{
-          -(desired_abs[0] + delta_Motor[0]),
-          -(desired_abs[1] + delta_Motor[1]),
-          -(desired_abs[2] + delta_Motor[2]),
-          -(desired_abs[3] + delta_Motor[3])
+          -(desired_abs[WHEEL_FL] + delta_Motor[WHEEL_FL]),
+          -(desired_abs[WHEEL_FR] + delta_Motor[WHEEL_FR]),
+          -(desired_abs[WHEEL_BR] + delta_Motor[WHEEL_BR]),
+          -(desired_abs[WHEEL_BL] + delta_Motor[WHEEL_BL])
         };
     
-        double[] res1 = wrapWheelCommand(desired_rel[0], current_rel[0]);
-        double[] res2 = wrapWheelCommand(desired_rel[1], current_rel[1]);
-        double[] res3 = wrapWheelCommand(desired_rel[2], current_rel[2]);
-        double[] res4 = wrapWheelCommand(desired_rel[3], current_rel[3]);
+        double[] res1 = wrapWheelCommand(desired_rel[WHEEL_FL], current_rel[WHEEL_FL]);
+        double[] res2 = wrapWheelCommand(desired_rel[WHEEL_FR], current_rel[WHEEL_FR]);
+        double[] res3 = wrapWheelCommand(desired_rel[WHEEL_BR], current_rel[WHEEL_BR]);
+        double[] res4 = wrapWheelCommand(desired_rel[WHEEL_BL], current_rel[WHEEL_BL]);
     
-        desired_rel1[0] = res1[0];
-        desired_rel1[1] = res2[0];
-        desired_rel1[2] = res3[0];
-        desired_rel1[3] = res4[0];
+        desired_rel1[WHEEL_FL] = res1[0];
+        desired_rel1[WHEEL_FR] = res2[0];
+        desired_rel1[WHEEL_BR] = res3[0];
+        desired_rel1[WHEEL_BL] = res4[0];
 
-        desired_translation[0] = res1[1];
-        desired_translation[1] = res2[1];
-        desired_translation[2] = res3[1];
-        desired_translation[3] = res4[1];
+        desired_translation[WHEEL_FL] = res1[1];
+        desired_translation[WHEEL_FR] = res2[1];
+        desired_translation[WHEEL_BR] = res3[1];
+        desired_translation[WHEEL_BL] = res4[1];
       }
 
   }
@@ -613,22 +636,22 @@ public class Robot extends TimedRobot {
       RM8_Encoder.getPosition()
     };
 
-    SmartDashboard.putNumber("CANCODER 1", current_abs[0]);
-    SmartDashboard.putNumber("CANCODER 2", current_abs[1]);
-    SmartDashboard.putNumber("CANCODER 3", current_abs[2]);
-    SmartDashboard.putNumber("CANCODER 4", current_abs[3]);
+    SmartDashboard.putNumber("CANCODER 1", current_abs[WHEEL_FL]);
+    SmartDashboard.putNumber("CANCODER 2", current_abs[WHEEL_FR]);
+    SmartDashboard.putNumber("CANCODER 3", current_abs[WHEEL_BR]);
+    SmartDashboard.putNumber("CANCODER 4", current_abs[WHEEL_BL]);
 
-    SmartDashboard.putNumber("RM2_Encoder.getPosition()", current_rel[0]); 
-    SmartDashboard.putNumber("hopefully close to CANCODER 1", wrapEncoderValues(-current_rel[0] - delta_Motor[0]));
+    SmartDashboard.putNumber("RM2_Encoder.getPosition()", current_rel[WHEEL_FL]); 
+    // SmartDashboard.putNumber("hopefully close to CANCODER 1", wrapEncoderValues(-current_rel[0] - delta_Motor[0]));
 
-    SmartDashboard.putNumber("RM4_Encoder.getPosition()", current_rel[1]); 
-    SmartDashboard.putNumber("hopefully close to CANCODER 2", wrapEncoderValues(-current_rel[1] - delta_Motor[1]));
+    SmartDashboard.putNumber("RM4_Encoder.getPosition()", current_rel[WHEEL_FR]); 
+    // SmartDashboard.putNumber("hopefully close to CANCODER 2", wrapEncoderValues(-current_rel[1] - delta_Motor[1]));
 
-    SmartDashboard.putNumber("RM6_Encoder.getPosition()", current_rel[2]); 
-    SmartDashboard.putNumber("hopefully close to CANCODER 3", wrapEncoderValues(-current_rel[2] - delta_Motor[2]));
+    SmartDashboard.putNumber("RM6_Encoder.getPosition()", current_rel[WHEEL_BR]); 
+    // SmartDashboard.putNumber("hopefully close to CANCODER 3", wrapEncoderValues(-current_rel[2] - delta_Motor[2]));
 
-    SmartDashboard.putNumber("RM8_Encoder.getPosition()", current_rel[3]); 
-    SmartDashboard.putNumber("hopefully close to CANCODER 4", wrapEncoderValues(-current_rel[3] - delta_Motor[3]));
+    SmartDashboard.putNumber("RM8_Encoder.getPosition()", current_rel[WHEEL_BL]); 
+    // SmartDashboard.putNumber("hopefully close to CANCODER 4", wrapEncoderValues(-current_rel[3] - delta_Motor[3]));
 
     // Obtain filtered Joystick Inputs
     filteredJoystickLeftY = filterJoystick(PS4joystick.getLeftY(), true);
@@ -659,38 +682,20 @@ public class Robot extends TimedRobot {
     if (omega == 0 & Vx != 0 & Vy != 0) {
       // No rotation, CASE 1
       SmartDashboard.putNumber("Case", 1);
-      double[] DESIRED = new double[]{((Math.atan2(Vy,Vx) * 180) / Math.PI),((Math.atan2(Vy,Vx) * 180) / Math.PI) , ((Math.atan2(Vy,Vx) * 180) / Math.PI), ((Math.atan2(Vy,Vx) * 180) / Math.PI)};
+      // double[] DESIRED = new double[]{((Math.atan2(Vy,Vx) * 180) / Math.PI),((Math.atan2(Vy,Vx) * 180) / Math.PI) , ((Math.atan2(Vy,Vx) * 180) / Math.PI), ((Math.atan2(Vy,Vx) * 180) / Math.PI)};
       // SmartDashboard.putNumber("DESIRED_BEFORE", DESIRED);
 
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-      // RM2_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
-      // RM4_PidController.setReference(desired_rel1[1], CANSparkMax.ControlType.kSmartMotion);
-      // RM6_PidController.setReference(desired_rel1[2], CANSparkMax.ControlType.kSmartMotion);
-      // RM8_PidController.setReference(desired_rel1[3], CANSparkMax.ControlType.kSmartMotion);
+      // set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+      // RM2_PidController.setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      // RM4_PidController.setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      // RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      // RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+
+      // TM1_PidController.setReference(desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      // RM4_PidController.setReference(desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      // RM6_PidController.setReference(desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      // RM8_PidController.setReference(desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
     }
-
-    else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
-      // Rotate in place, CASE 3
-      SmartDashboard.putNumber("Case", 3);
-      // double[] DESIRED = new double[] {45, 45, 45, 45};
-
-      // set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
-      // RM2_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
-      // RM4_PidController.setReference(desired_rel1[1], CANSparkMax.ControlType.kSmartMotion);
-      // RM6_PidController.setReference(desired_rel1[2], CANSparkMax.ControlType.kSmartMotion);
-      // RM8_PidController.setReference(desired_rel1[3], CANSparkMax.ControlType.kSmartMotion);
-
-      // SmartDashboard.putNumber("translateMotor1", omega);
-      // SmartDashboard.putNumber("translateMotor2", omega);
-      // SmartDashboard.putNumber("translateMotor3", omega);
-      // SmartDashboard.putNumber("translateMotor4", omega);
-
-      // TM1_PidController.setReference(desired_translation[0] * omega * maxRPM, CANSparkMax.ControlType.kVelocity);
-      // TM3_PidController.setReference(desired_translation[1] * omega * maxRPM, CANSparkMax.ControlType.kVelocity);
-      // TM5_PidController.setReference(desired_translation[2] * omega * maxRPM, CANSparkMax.ControlType.kVelocity);
-      // TM7_PidController.setReference(desired_translation[3] * omega * maxRPM, CANSparkMax.ControlType.kVelocity);
-
-  }
 
     else if (omega != 0 & Vx != 0 & Vy != 0) {
       // General Case, CASE 2
@@ -730,18 +735,41 @@ public class Robot extends TimedRobot {
       // double[] DESIRED = new double[] {Omega_wheel1, Omega_wheel2, Omega_wheel3, Omega_wheel4};
 
       // set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
-      // RM2_PidController.setReference(desired_rel1[0], CANSparkMax.ControlType.kSmartMotion);
-      // RM4_PidController.setReference(desired_rel1[1], CANSparkMax.ControlType.kSmartMotion);
-      // RM6_PidController.setReference(desired_rel1[2], CANSparkMax.ControlType.kSmartMotion);
-      // RM8_PidController.setReference(desired_rel1[3], CANSparkMax.ControlType.kSmartMotion);
+      // RM2_PidController.setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      // RM4_PidController.setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      // RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      // RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      // TM1_PidController.setReference(desired_translation[0] * Vwheel1 * maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
-      // TM3_PidController.setReference(desired_translation[1] * Vwheel2 * maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
-      // TM5_PidController.setReference(desired_translation[2] * Vwheel3 * maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
-      // TM7_PidController.setReference(desired_translation[3] * Vwheel4 * maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
-
+      // TM1_PidController.setReference(desired_translation[WHEEL_FL] * Vwheel1 * Trans_maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
+      // TM3_PidController.setReference(desired_translation[WHEEL_FR] * Vwheel2 * Trans_maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
+      // TM5_PidController.setReference(desired_translation[WHEEL_BR] * Vwheel3 * Trans_maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
+      // TM7_PidController.setReference(desired_translation[WHEEL_BL] * Vwheel4 * Trans_maxRPM * MAX_LINEAR_VELOCITY, CANSparkMax.ControlType.kVelocity);
     }
+
+    else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
+      // Rotate in place, CASE 3
+      SmartDashboard.putNumber("Case", 3);
+      double[] DESIRED = new double[] {45, 45, 45, 45};
+
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+      // RM2_PidController.setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      RM4_PidController.setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      // RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+
+      // SmartDashboard.putNumber("translateMotor1", omega);
+      // SmartDashboard.putNumber("translateMotor2", omega);
+      // SmartDashboard.putNumber("translateMotor3", omega);
+      // SmartDashboard.putNumber("translateMotor4", omega);
+
+      // TM1_PidController.setReference(desired_translation[WHEEL_FL] * omega * Trans_maxRPM, CANSparkMax.ControlType.kVelocity);
+      // TM3_PidController.setReference(desired_translation[WHEEL_FR] * omega * Trans_maxRPM, CANSparkMax.ControlType.kVelocity);
+      // TM5_PidController.setReference(desired_translation[WHEEL_BR] * omega * Trans_maxRPM, CANSparkMax.ControlType.kVelocity);
+      // TM7_PidController.setReference(desired_translation[WHEEL_BL] * omega * Trans_maxRPM, CANSparkMax.ControlType.kVelocity);
+
   }
+  
+}
 
   /** This function is called once each time the robot enters test mode. */
   @Override
