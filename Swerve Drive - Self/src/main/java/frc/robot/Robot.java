@@ -140,6 +140,7 @@ public class Robot extends TimedRobot {
   private final int imgHeight = 240; // 240
   private Random rng = new Random(12345);
 
+
   /**
    * This function is run when the robot is first started up and should be used for any
    * initialization code.
@@ -400,6 +401,7 @@ public class Robot extends TimedRobot {
 
     // gaussian blue
     Size gb = new Size(5, 5);
+    // Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
 
     visionThread = new Thread(() -> {
       // add USB camera, create server for SmartDashboard
@@ -416,6 +418,8 @@ public class Robot extends TimedRobot {
       Mat blueMask = new Mat();
       Mat mask = new Mat();
       Mat black = Mat.zeros(imgHeight, imgWidth, 16);
+      Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5.0, 5.0));
+
       // Mat hierarchy = new Mat();
       List<MatOfPoint> contours = new ArrayList<>();
       MatOfPoint2f[] contoursPoly;
@@ -437,52 +441,17 @@ public class Robot extends TimedRobot {
           // Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY);
           Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
           Core.inRange(sourceMat, redLower, redUpper, redMask);
+          Imgproc.morphologyEx(redMask, redMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
           Core.inRange(sourceMat, blueLower, blueUpper, blueMask);
+          Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
+
           black.copyTo(sourceMat);
           // Core.bitwise_or(redMask, blueMask, mask);
-          // System.out.println(black.size());
-          // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
+          // System.out.println(Core.VERSION);
+
           sourceMat.setTo(new Scalar(255, 0, 0), blueMask);
           sourceMat.setTo(new Scalar(0, 0, 255), redMask);
-          // Imgproc.Canny(sourceMat, sourceMat, 10, 20);
-          // Imgproc.findContours(sourceMat, contours, hierarchy, Imgproc.RETR_TREE, Imgproc.CHAIN_APPROX_SIMPLE);
 
-          // not efficient whatsoever but tetsing for now
-          // int N = contours.size();
-          // contoursPoly = new MatOfPoint2f[N];
-          // boundRect = new Rect[N];
-          // centers = new Point[N];
-          // radius = new float[N][1];
-          // drawing = Mat.zeros(sourceMat.size(), CvType.CV_8UC3);
-
-          // contoursPolyList = new ArrayList<>(contoursPoly.length);
-          // if (contoursPoly.length > 0 & contoursPoly != null){
-          //   for (MatOfPoint2f poly : contoursPoly) {
-          //     if(poly != null){
-          //       contoursPolyList.add(new MatOfPoint(poly.toArray()));
-          //     }else{
-          //       contoursPolyList.add(null);
-          //     }
-              
-          //   }
-  
-          //   for(int i = 0; i < N; i++){
-          //     Scalar c = new Scalar(rng.nextInt(256), rng.nextInt(256), rng.nextInt(256));
-          //     Imgproc.drawContours(drawing, contoursPolyList, i, c);
-          //     Imgproc.rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), c, 2);
-          //     Imgproc.circle(drawing, centers[i], (int) radius[i][0], color, 2);
-          //   }
-          // }
-          
-
-          // Core.inRange(sourceMat, redLower, redUpper, sourceMat);
-          //Core.inRange(sourceMat, redLower2, redUpper2, mask2);
-          //Core.bitwise_or(mask, mask2, mask);
-          // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
-          // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
-          //  480*640*CV_8UC3
-
-          //Core.inRange(sourceMat, redLower, redUpper, mask);
 
           outputStream.putFrame(sourceMat); // put processed image to smartdashboard
           long endTime = System.currentTimeMillis();
