@@ -136,8 +136,8 @@ public class Robot extends TimedRobot {
 
   // Vision
   private Thread visionThread;
-  private final int imgWidth = 320;
-  private final int imgHeight = 240;
+  private final int imgWidth = 320; // 320
+  private final int imgHeight = 240; // 240
   private Random rng = new Random(12345);
 
   /**
@@ -392,10 +392,10 @@ public class Robot extends TimedRobot {
     Scalar color = new Scalar(255, 255, 255);
 
     // BGR thresholding
-    Scalar redLower = new Scalar(0, 0, 110);
+    Scalar redLower = new Scalar(0, 0, 100);
     Scalar redUpper = new Scalar(80, 80, 255);
 
-    Scalar blueLower = new Scalar(70, 0, 0);
+    Scalar blueLower = new Scalar(80, 0, 0);
     Scalar blueUpper = new Scalar(255, 100, 70);
 
     // gaussian blue
