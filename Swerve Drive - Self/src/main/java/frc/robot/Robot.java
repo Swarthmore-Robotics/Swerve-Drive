@@ -387,7 +387,7 @@ public class Robot extends TimedRobot {
     Scalar blueUpper = new Scalar(255, 100, 70);
 
     // gaussian blur
-    Size gb = new Size(5, 5);
+    Size gb = new Size(7, 7);
 
     visionThread = new Thread(() -> {
       // add USB camera, create server for SmartDashboard
@@ -398,10 +398,10 @@ public class Robot extends TimedRobot {
       CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
       Mat sourceMat = new Mat();
-      Mat destMat = new Mat();
+      // Mat destMat = new Mat();
       Mat redMask = new Mat();
       Mat blueMask = new Mat();
-      Mat mask = new Mat();
+      // Mat mask = new Mat();
       Mat black = Mat.zeros(imgHeight, imgWidth, 16);
       Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5.0, 5.0));
 
@@ -415,10 +415,10 @@ public class Robot extends TimedRobot {
           Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
 
           Core.inRange(sourceMat, redLower, redUpper, redMask);
-          Imgproc.morphologyEx(redMask, redMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
+          // Imgproc.morphologyEx(redMask, redMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
 
           Core.inRange(sourceMat, blueLower, blueUpper, blueMask);
-          Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
+          // Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
 
           black.copyTo(sourceMat);
 
