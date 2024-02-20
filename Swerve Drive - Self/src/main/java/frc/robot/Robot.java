@@ -134,7 +134,7 @@ public class Robot extends TimedRobot {
 
   /* should have two arrays of length 4: alpha to store abs offsets, delta to store rel offsets, alpha be final */
 
-  // Vision
+  // Vision Variables
   private Thread visionThread;
   private final int imgWidth = 320; // 320
   private final int imgHeight = 240; // 240
@@ -151,7 +151,7 @@ public class Robot extends TimedRobot {
     initVision();
 
     // initialize PID
-    initPID();
+    // initPID();
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -276,15 +276,6 @@ public class Robot extends TimedRobot {
   private void printDB(String name, String s){ // print 1 value
     SmartDashboard.putString(name, s);
   }
-  // private void printDB(String[] names, double[] vals){ // print a list of values
-  //   for(int i = 0; i < names.size(); i++){
-  //     printDB(names[i], vals[i]);
-  //   }
-  // }
-
-  /*
-   * Initializes PID constants to all motor controllers
-   */
   private void initPID(boolean verbose){
 
     // PID controllers
@@ -388,10 +379,6 @@ public class Robot extends TimedRobot {
    */
   private void initVision(){
 
-    Point upleft = new Point(50, 50);
-    Point downright = new Point(100, 100);
-    Scalar color = new Scalar(255, 255, 255);
-
     // BGR thresholding
     Scalar redLower = new Scalar(0, 0, 100);
     Scalar redUpper = new Scalar(80, 80, 255);
@@ -399,14 +386,12 @@ public class Robot extends TimedRobot {
     Scalar blueLower = new Scalar(80, 0, 0);
     Scalar blueUpper = new Scalar(255, 100, 70);
 
-    // gaussian blue
+    // gaussian blur
     Size gb = new Size(5, 5);
-    // Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
 
     visionThread = new Thread(() -> {
       // add USB camera, create server for SmartDashboard
       UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
-      // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
       usbCamera.setResolution(imgWidth, imgHeight);
 
       CvSink cvSink = CameraServer.getVideo(); // grab images from camera
@@ -420,34 +405,22 @@ public class Robot extends TimedRobot {
       Mat black = Mat.zeros(imgHeight, imgWidth, 16);
       Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5.0, 5.0));
 
-      // Mat hierarchy = new Mat();
-      List<MatOfPoint> contours = new ArrayList<>();
-      MatOfPoint2f[] contoursPoly;
-      Rect[] boundRect;
-      Point[] centers;
-      float[][] radius;
-      Mat drawing = new Mat();
-      List<MatOfPoint> contoursPolyList;
-
-      
-      // TODO: time profile this
+      // ~40 ms per loop
       while(true){ /// TODO: change condition later
         long startTime = System.currentTimeMillis();
         
 
         if (cvSink.grabFrame(sourceMat) != 0){
-          // destMat = new Mat();
-          //Scalar avg = Core.mean(sourceMat);
-          // Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY);
+
           Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
+
           Core.inRange(sourceMat, redLower, redUpper, redMask);
           Imgproc.morphologyEx(redMask, redMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
+
           Core.inRange(sourceMat, blueLower, blueUpper, blueMask);
           Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
 
           black.copyTo(sourceMat);
-          // Core.bitwise_or(redMask, blueMask, mask);
-          // System.out.println(Core.VERSION);
 
           sourceMat.setTo(new Scalar(255, 0, 0), blueMask);
           sourceMat.setTo(new Scalar(0, 0, 255), redMask);

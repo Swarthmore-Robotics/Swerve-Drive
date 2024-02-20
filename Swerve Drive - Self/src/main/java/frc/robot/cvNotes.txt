@@ -1,0 +1,2 @@
+Scalar avg = Core.mean(sourceMat);
+Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2GRAY);
