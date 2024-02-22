@@ -35,7 +35,7 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.core.Core;
 import java.util.List;
 import java.util.ArrayList;
-import  java.util.Random;
+import java.util.Random;
 
 import com.ctre.phoenix.sensors.CANCoder;
 
@@ -139,6 +139,7 @@ public class Robot extends TimedRobot {
   private final int imgWidth = 320; // 320
   private final int imgHeight = 240; // 240
   private Random rng = new Random(12345);
+  private final int maxObjectColors = 5;
 
 
   /**
@@ -385,9 +386,9 @@ public class Robot extends TimedRobot {
 
     // BGR thresholding values
     Scalar redLower = new Scalar(0, 0, 55);
-    Scalar redUpper = new Scalar(40, 20, 255);
+    Scalar redUpper = new Scalar(80, 35, 255);
     
-    Scalar yellowLower = new Scalar(0, 155, 175);
+    Scalar yellowLower = new Scalar(0, 150, 175);
     Scalar yellowUpper = new Scalar(140, 200, 230);
 
 
@@ -408,8 +409,11 @@ public class Robot extends TimedRobot {
       // Mat mask = new Mat();
       Mat black = Mat.zeros(imgHeight, imgWidth, 16);
       // Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5.0, 5.0));
-      List<MatOfPoint> contours = new ArrayList<>();
-      Mat hierarchy = new Mat();
+      List<MatOfPoint> contoursRed = new ArrayList<MatOfPoint>();
+      Mat hierarchyRed = new Mat();
+      List<MatOfPoint> contoursYellow = new ArrayList<MatOfPoint>();
+      Mat hierarchyYellow = new Mat();
+      Rect br;
 
       // ~40 ms per loop
       while(true){ /// TODO: change condition later
@@ -423,24 +427,33 @@ public class Robot extends TimedRobot {
 
           // red thresholding
           Core.inRange(sourceMat, redLower, redUpper, redMask);
-          // Imgproc.morphologyEx(redMask, redMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
 
           // yellow thresholding
-          // Core.inRange(sourceMat, yellowLower, yellowUpper, yellowMask);
-          // Imgproc.morphologyEx(blueMask, blueMask, Imgproc.MORPH_OPEN, kernelOpen); // 2=opening
+          Core.inRange(sourceMat, yellowLower, yellowUpper, yellowMask);
 
-          contours = new ArrayList<>();
-          Imgproc.findContours(redMask, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+          contoursRed = new ArrayList<MatOfPoint>();
+          contoursYellow = new ArrayList<MatOfPoint>();
+          Imgproc.findContours(redMask, contoursRed, hierarchyRed, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+          Imgproc.findContours(yellowMask, contoursYellow, hierarchyYellow, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
           // System.out.println(contours.size());
           black.copyTo(sourceMat);
-          for (int i = 0; i < contours.size(); i++) {
-            Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8, hierarchy, 0, new Point());
+          for (int i = 0; i < Math.min(contoursRed.size(), maxObjectColors); i++) {
+            // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8, hierarchy, 0, new Point());
+            br = Imgproc.boundingRect(contoursRed.get(i));
+            Imgproc.rectangle(sourceMat, br.tl(), br.br(), redColor, 1);
+          }
+
+          for (int i = 0; i < Math.min(contoursYellow.size(), maxObjectColors); i++) {
+            // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8, hierarchy, 0, new Point());
+            br = Imgproc.boundingRect(contoursYellow.get(i));
+            Imgproc.rectangle(sourceMat, br.tl(), br.br(), yellowColor, 1);
           }
 
           // output results
           // black.copyTo(sourceMat);
-          // sourceMat.setTo(yellowColor, yellowMask);
-          // sourceMat.setTo(redColor, redMask);
+          sourceMat.setTo(yellowColor, yellowMask);
+          sourceMat.setTo(redColor, redMask);
 
           outputStream.putFrame(sourceMat); // put processed image to smartdashboard
           long endTime = System.currentTimeMillis();
