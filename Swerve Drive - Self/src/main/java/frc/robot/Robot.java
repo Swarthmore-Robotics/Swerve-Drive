@@ -376,6 +376,16 @@ public class Robot extends TimedRobot {
     initPID(false);
   }
 
+  // Computer Vision Methods ---
+
+  /*
+   * Calculate center of rectangle
+   */
+
+   private Point rectCenter(Rect r){
+      return new Point(r.tl().x + (r.width/2.0), r.tl().y + (r.height/2.0));
+   }
+
   /*
    * Initializes Computer Vision
    */
@@ -384,6 +394,9 @@ public class Robot extends TimedRobot {
     // colors
     Scalar redColor = new Scalar(0, 0, 255);
     Scalar yellowColor = new Scalar(0, 255, 255);
+    Scalar greenColor = new Scalar(0, 255, 0);
+    Scalar blueColor = new Scalar(255, 0, 0);
+    Scalar pinkColor = new Scalar(255, 0, 255);
 
     // BGR thresholding values
     Scalar redLower = new Scalar(0, 0, 55);
@@ -466,20 +479,26 @@ public class Robot extends TimedRobot {
             }
           }
 
+          sourceMat.setTo(yellowColor, yellowMask);
+          sourceMat.setTo(redColor, redMask);
+
           if(!verbose){
             Imgproc.rectangle(sourceMat, biggestRed.tl(), biggestRed.br(), redColor, 1);
             Imgproc.rectangle(sourceMat, biggestYellow.tl(), biggestYellow.br(), yellowColor, 1);
+            Imgproc.circle(sourceMat, rectCenter(biggestRed), 3, blueColor, -1);
+            Imgproc.circle(sourceMat, rectCenter(biggestYellow), 3, blueColor, -1);
           }
 
           // output results
           // black.copyTo(sourceMat);
-          sourceMat.setTo(yellowColor, yellowMask);
-          sourceMat.setTo(redColor, redMask);
 
           outputStream.putFrame(sourceMat); // put processed image to smartdashboard
           long endTime = System.currentTimeMillis();
 
           System.out.println("Total execution time: " + (endTime - startTime));
+
+          SmartDashboard.putString("Biggest Red Center", rectCenter(biggestRed).toString());
+          SmartDashboard.putString("Biggest Yellow Center", rectCenter(biggestYellow).toString());
         }
       }
     
