@@ -98,6 +98,7 @@ public class Robot extends TimedRobot {
   private RelativeEncoder TM7_Encoder;
 
   private double rotConvFactor = 5.62279270244;
+  // private double transConvFactor = 1;
   private double transConvFactor = 0.1875; // RPM
   // private double transConvFactor = 0.0014961835; // m/s
 
@@ -130,14 +131,6 @@ public class Robot extends TimedRobot {
   public double Trans_kMaxOutput = 1; 
   public double Trans_kMinOutput = -1;
   public double Trans_maxRPM = 5500;
-
-  // Translation Motor Smart Motion Coefficients
-  // public double Trans_maxVel = Trans_maxRPM; // rpm
-  // public double Trans_minVel = 0;
-  // public double Trans_maxAcc = 11000;
-  // public double Trans_allowedErr = 0.5; 
-
-  private final Timer m_timer = new Timer();
 
   // encoder offset variables, should have two arrays of length 4: 
   // alpha to store abs offsets, delta to store rel offsets, alpha be final 
@@ -188,7 +181,7 @@ public class Robot extends TimedRobot {
    * from -0.1 to 0.1 to 0.
    */
   private double highpassFilter(double rawInput){
-    if(Math.abs(rawInput) < 0.05){
+    if(Math.abs(rawInput) < 0.1){
       return 0.0;
     }else{
       // return Math.pow(rawInput, 3);
@@ -269,7 +262,7 @@ public class Robot extends TimedRobot {
     SmartDashboard.putString(name, s);
   }
   // private void printDB(String[] names, double[] vals){ // print a list of values
-  //   for(int i = 0; i < names.size(); i++){
+  //   for(int i = 0; i < vals.length; i++){
   //     printDB(names[i], vals[i]);
   //   }
   // }
@@ -574,9 +567,9 @@ public class Robot extends TimedRobot {
       desired_rel1[WHEEL_BR] = res3[0];
       desired_rel1[WHEEL_BL] = res4[0];
 
-      desired_translation[WHEEL_FL] = res1[1];
+      desired_translation[WHEEL_FL] = -1 * res1[1];
       desired_translation[WHEEL_FR] = res2[1];
-      desired_translation[WHEEL_BR] = res3[1];
+      desired_translation[WHEEL_BR] = -1 * res3[1];
       desired_translation[WHEEL_BL] = res4[1];
     }
 
@@ -663,13 +656,19 @@ public class Robot extends TimedRobot {
     double[] desired_translation = new double[]{0.0, 0.0, 0.0, 0.0};
 
     // Constants
-    double x = 0.31115;
-    double y = 0.31115;
+    double x = 12.75; //distance from chassis center to module - x-component
+    double y = 12.75; //distance from chassis center to module - y-component
+
+    double r = mag(x,y); //needed to make x,y dimensionless
+
+    double q_trans_factor = 1.847759; //needed to bound range of q-vector from 0-1
     double d;
     double Vr_norm[] = new double[]{Vx/Vr, Vy/Vr};
 
-    double rad_s = 1.256637;
-    double m_s = 0.487804;
+    // double rad_s = 1.256637;
+    double rad_s = 1;
+    // double m_s = 0.487804;
+    double m_s = 1;
 
     if (omega == 0 & (Vx != 0 | Vy != 0)) {
       // No rotation, CASE 1
@@ -715,20 +714,20 @@ public class Robot extends TimedRobot {
       // NEW IMPLEMENTATION
       // ------------------------------------------------------------------------------------------------ //
 
-      double v1x = -1*Vy*m_s + (-1*(omega * rad_s * y));
-      double v2x = -1*Vy*m_s + (-1*(omega* rad_s * y));
-      double v3x = -1*Vy*m_s + (omega* rad_s * y);
-      double v4x = -1*Vy*m_s + (omega* rad_s * y);
+      // x component of each wheel is made up of x component of left joystick and x component of right joystick
+      double v1x = -1*Vy + (-1*(omega * y/r));
+      double v2x = -1*Vy + (-1*(omega * y/r));
+      double v3x = -1*Vy + (omega * y/r);
+      double v4x = -1*Vy + (omega * y/r);
       SmartDashboard.putNumber("v1x", v1x);
       SmartDashboard.putNumber("v2x", v2x);
       SmartDashboard.putNumber("v3x", v3x);
       SmartDashboard.putNumber("v4x", v4x);
 
-      double v1y = Vx*m_s + (-1*(omega* rad_s * x));
-      double v2y = Vx*m_s + (omega* rad_s * x);
-      double v3y = Vx*m_s + (omega* rad_s * x);
-      double v4y = Vx*m_s + (-1*(omega* rad_s * x));
-
+      double v1y = Vx + (-1*(omega * x/r));
+      double v2y = Vx + (omega * x/r);
+      double v3y = Vx + (omega * x/r);
+      double v4y = Vx + (-1*(omega * x/r));
       SmartDashboard.putNumber("v1y", v1y);
       SmartDashboard.putNumber("v2y", v2y);
       SmartDashboard.putNumber("v3y", v3y);
@@ -739,11 +738,15 @@ public class Robot extends TimedRobot {
       double q3 = mag(v3x, v3y);
       double q4 = mag(v4x, v4y);
 
+      SmartDashboard.putNumber("q1", q1);
+      SmartDashboard.putNumber("q2", q2);
+      SmartDashboard.putNumber("q3", q3);
+      SmartDashboard.putNumber("q4", q4);
+
       double Omega_wheel1 = -1*(Math.atan2(v1x, v1y) * 180) / Math.PI;
       double Omega_wheel2 = -1*(Math.atan2(v2x, v2y) * 180) / Math.PI;
       double Omega_wheel3 = -1*(Math.atan2(v3x, v3y) * 180) / Math.PI;
       double Omega_wheel4 = -1*(Math.atan2(v4x, v4y) * 180) / Math.PI;
-
       SmartDashboard.putNumber("Omega_wheel1", Omega_wheel1);
       SmartDashboard.putNumber("Omega_wheel2", Omega_wheel2);
       SmartDashboard.putNumber("Omega_wheel3", Omega_wheel3);
@@ -757,15 +760,37 @@ public class Robot extends TimedRobot {
       RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
       RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      TM1_PidController.setReference(-1 * desired_translation[WHEEL_FL] * q1 * Trans_maxRPM/7, CANSparkMax.ControlType.kVelocity);
-      TM3_PidController.setReference( desired_translation[WHEEL_FR] * q2 * Trans_maxRPM/7, CANSparkMax.ControlType.kVelocity);
-      TM5_PidController.setReference(-1 * desired_translation[WHEEL_BR] * q3 * Trans_maxRPM/7, CANSparkMax.ControlType.kVelocity);
-      TM7_PidController.setReference(desired_translation[WHEEL_BL] * q4 * Trans_maxRPM/7, CANSparkMax.ControlType.kVelocity);
+      double[] setpoint = new double[]{q1 * Trans_maxRPM/7, q2 * Trans_maxRPM/7, q3 * Trans_maxRPM/7, q4 * Trans_maxRPM/7};
 
-      SmartDashboard.putNumber("desired_rel1[WHEEL_FL]", desired_rel1[WHEEL_FL]);
-      SmartDashboard.putNumber("desired_rel1[WHEEL_FR]", desired_rel1[WHEEL_FR]);
-      SmartDashboard.putNumber("desired_rel1[WHEEL_BR]", desired_rel1[WHEEL_BR]);
-      SmartDashboard.putNumber("desired_rel1[WHEEL_BL]", desired_rel1[WHEEL_BL]);
+      TM1_PidController.setReference(desired_translation[WHEEL_FL] * setpoint[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM3_PidController.setReference(desired_translation[WHEEL_FR] * setpoint[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM5_PidController.setReference(desired_translation[WHEEL_BR] * setpoint[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM7_PidController.setReference(desired_translation[WHEEL_BL] * setpoint[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+      // TranslationMotors[0].set(desired_translation[WHEEL_FL]* 0.5* q1);
+      // TranslationMotors[0].set(desired_translation[WHEEL_FR]*0.5* q2);
+      // TranslationMotors[0].set(desired_translation[WHEEL_BR]*0.5* q3);
+      // TranslationMotors[0].set(desired_translation[WHEEL_BL]*0.5* q4);
+
+      SmartDashboard.putNumber("setpoint[WHEEL_FL]", setpoint[WHEEL_FL]);
+      SmartDashboard.putNumber("setpoint[WHEEL_FR]", setpoint[WHEEL_FR]);
+      SmartDashboard.putNumber("setpoint[WHEEL_BR]", setpoint[WHEEL_BR]);
+      SmartDashboard.putNumber("setpoint[WHEEL_BL]", setpoint[WHEEL_BL]);
+
+      SmartDashboard.putNumber("desired_translation[WHEEL_FL] * setpoint[WHEEL_FL]", desired_translation[WHEEL_FL] * setpoint[WHEEL_FL]);
+      SmartDashboard.putNumber("desired_translation[WHEEL_FR] * setpoint[WHEEL_FR]", desired_translation[WHEEL_FR] * setpoint[WHEEL_FR]);
+      SmartDashboard.putNumber("desired_translation[WHEEL_BR] * setpoint[WHEEL_BR]", desired_translation[WHEEL_BR] * setpoint[WHEEL_BR]);
+      SmartDashboard.putNumber("desired_translation[WHEEL_BL] * setpoint[WHEEL_BL]", desired_translation[WHEEL_BL] * setpoint[WHEEL_BL]);
+
+
+      SmartDashboard.putNumber("desired_translation[WHEEL_FL]", desired_translation[WHEEL_FL]);
+      SmartDashboard.putNumber("desired_translation[WHEEL_FR]", desired_translation[WHEEL_FR]);
+      SmartDashboard.putNumber("desired_translation[WHEEL_BR]", desired_translation[WHEEL_BR]);
+      SmartDashboard.putNumber("desired_translation[WHEEL_BL]", desired_translation[WHEEL_BL]);
+
+      SmartDashboard.putNumber("TM1_Encoder.getVelocity()", TM1_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM3_Encoder.getVelocity()", TM3_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM5_Encoder.getVelocity()", TM5_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM7_Encoder.getVelocity()", TM7_Encoder.getVelocity());
 
       }
 
@@ -780,26 +805,26 @@ public class Robot extends TimedRobot {
       RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
       RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      double setPoint = omega * (Trans_maxRPM/7);
-      TM1_PidController.setReference(setPoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
-      TM3_PidController.setReference(setPoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
-      TM5_PidController.setReference(setPoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
-      TM7_PidController.setReference(setPoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+      double setpoint = omega * (Trans_maxRPM/7);
+      TM1_PidController.setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM3_PidController.setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM5_PidController.setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM7_PidController.setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
 
-      SmartDashboard.putNumber("TM1 Desired_trans", desired_translation[WHEEL_FL]);
-      SmartDashboard.putNumber("TM3 Desired_trans", desired_translation[WHEEL_FR]);
-      SmartDashboard.putNumber("TM5 Desired_trans", desired_translation[WHEEL_BR]);
-      SmartDashboard.putNumber("TM7 Desired_trans", desired_translation[WHEEL_BL]);
+      // SmartDashboard.putNumber("TM1 Desired_trans", desired_translation[WHEEL_FL]);
+      // SmartDashboard.putNumber("TM3 Desired_trans", desired_translation[WHEEL_FR]);
+      // SmartDashboard.putNumber("TM5 Desired_trans", desired_translation[WHEEL_BR]);
+      // SmartDashboard.putNumber("TM7 Desired_trans", desired_translation[WHEEL_BL]);
 
-      SmartDashboard.putNumber("TM1 Desired * setpoint", setPoint * desired_translation[WHEEL_FL]);
-      SmartDashboard.putNumber("TM3 Desired * setpoint", setPoint * desired_translation[WHEEL_FR]);
-      SmartDashboard.putNumber("TM5 Desired * setpoint", setPoint * desired_translation[WHEEL_BR]);
-      SmartDashboard.putNumber("TM7 Desired * setpoint", setPoint * desired_translation[WHEEL_BL]);
+      // SmartDashboard.putNumber("TM1 Desired * setpoint", setpoint * desired_translation[WHEEL_FL]);
+      // SmartDashboard.putNumber("TM3 Desired * setpoint", setpoint * desired_translation[WHEEL_FR]);
+      // SmartDashboard.putNumber("TM5 Desired * setpoint", setpoint * desired_translation[WHEEL_BR]);
+      // SmartDashboard.putNumber("TM7 Desired * setpoint", setpoint * desired_translation[WHEEL_BL]);
 
-      SmartDashboard.putNumber("TM1 Velocity", TM1_Encoder.getVelocity());
-      SmartDashboard.putNumber("TM3 Velocity", TM3_Encoder.getVelocity());
-      SmartDashboard.putNumber("TM5 Velocity", TM5_Encoder.getVelocity());
-      SmartDashboard.putNumber("TM7 Velocity", TM7_Encoder.getVelocity());
+      // SmartDashboard.putNumber("TM1 Velocity", TM1_Encoder.getVelocity());
+      // SmartDashboard.putNumber("TM3 Velocity", TM3_Encoder.getVelocity());
+      // SmartDashboard.putNumber("TM5 Velocity", TM5_Encoder.getVelocity());
+      // SmartDashboard.putNumber("TM7 Velocity", TM7_Encoder.getVelocity());
   } 
 
   else {
