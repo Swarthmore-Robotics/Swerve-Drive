@@ -132,10 +132,10 @@ public class Robot extends TimedRobot {
   public double Trans_maxRPM = 5500;
 
   // Translation Motor Smart Motion Coefficients
-  public double Trans_maxVel = Trans_maxRPM; // rpm
-  public double Trans_minVel = 0;
-  public double Trans_maxAcc = 11000;
-  public double Trans_allowedErr = 0.5; 
+  // public double Trans_maxVel = Trans_maxRPM; // rpm
+  // public double Trans_minVel = 0;
+  // public double Trans_maxAcc = 11000;
+  // public double Trans_allowedErr = 0.5; 
 
   private final Timer m_timer = new Timer();
 
@@ -188,10 +188,11 @@ public class Robot extends TimedRobot {
    * from -0.1 to 0.1 to 0.
    */
   private double highpassFilter(double rawInput){
-    if(Math.abs(rawInput) < 0.03){
+    if(Math.abs(rawInput) < 0.05){
       return 0.0;
     }else{
-      return Math.pow(rawInput, 3);
+      // return Math.pow(rawInput, 3);
+      return rawInput;
     }
   }
 
@@ -278,7 +279,7 @@ public class Robot extends TimedRobot {
    */
   private void initPID(boolean verbose){
 
-    // PID controllers
+    // Rotation PID controllers
     RM2_PidController = RotationMotors[WHEEL_FL].getPIDController();
     RM2_Encoder = RotationMotors[WHEEL_FL].getEncoder();
     RM2_Encoder.setPositionConversionFactor(rotConvFactor);
@@ -294,22 +295,6 @@ public class Robot extends TimedRobot {
     RM8_PidController = RotationMotors[WHEEL_BL].getPIDController();
     RM8_Encoder = RotationMotors[WHEEL_BL].getEncoder();
     RM8_Encoder.setPositionConversionFactor(rotConvFactor);
-
-    TM1_PidController = TranslationMotors[WHEEL_FL].getPIDController();
-    TM1_Encoder = TranslationMotors[WHEEL_FL].getEncoder();
-    TM1_Encoder.setPositionConversionFactor(transConvFactor);
-
-    TM3_PidController = TranslationMotors[WHEEL_FR].getPIDController();
-    TM3_Encoder = TranslationMotors[WHEEL_FR].getEncoder();
-    TM3_Encoder.setPositionConversionFactor(transConvFactor);
-    
-    TM5_PidController = TranslationMotors[WHEEL_BR].getPIDController();
-    TM5_Encoder = TranslationMotors[WHEEL_BR].getEncoder();
-    TM5_Encoder.setPositionConversionFactor(transConvFactor);
-    
-    TM7_PidController = TranslationMotors[WHEEL_BL].getPIDController();
-    TM7_Encoder = TranslationMotors[WHEEL_BL].getEncoder();
-    TM7_Encoder.setPositionConversionFactor(transConvFactor);
 
     RM2_PidController.setP(Rot_kP);
     RM2_PidController.setI(Rot_kI);
@@ -338,6 +323,23 @@ public class Robot extends TimedRobot {
     RM8_PidController.setIZone(Rot_kIz);
     RM8_PidController.setFF(Rot_kFF);
     RM8_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
+
+    // Translation PID controllers
+    TM1_PidController = TranslationMotors[WHEEL_FL].getPIDController();
+    TM1_Encoder = TranslationMotors[WHEEL_FL].getEncoder();
+    TM1_Encoder.setVelocityConversionFactor(transConvFactor);
+
+    TM3_PidController = TranslationMotors[WHEEL_FR].getPIDController();
+    TM3_Encoder = TranslationMotors[WHEEL_FR].getEncoder();
+    TM3_Encoder.setVelocityConversionFactor(transConvFactor);
+    
+    TM5_PidController = TranslationMotors[WHEEL_BR].getPIDController();
+    TM5_Encoder = TranslationMotors[WHEEL_BR].getEncoder();
+    TM5_Encoder.setVelocityConversionFactor(transConvFactor);
+    
+    TM7_PidController = TranslationMotors[WHEEL_BL].getPIDController();
+    TM7_Encoder = TranslationMotors[WHEEL_BL].getEncoder();
+    TM7_Encoder.setVelocityConversionFactor(transConvFactor);
 
     TM1_PidController.setP(Trans_kP);
     TM1_PidController.setI(Trans_kI);
@@ -421,10 +423,10 @@ public class Robot extends TimedRobot {
     }
 
     // define abs to relative encoder offset values
-    delta_Motor[0] = wrapEncoderValues((-1*coders[WHEEL_FL].getAbsolutePosition()) - RM2_Encoder.getPosition());
-    delta_Motor[1] = wrapEncoderValues((-1*coders[WHEEL_FR].getAbsolutePosition()) - RM4_Encoder.getPosition());
-    delta_Motor[2] = wrapEncoderValues((-1*coders[WHEEL_BR].getAbsolutePosition()) - RM6_Encoder.getPosition());
-    delta_Motor[3] = wrapEncoderValues((-1*coders[WHEEL_BL].getAbsolutePosition()) - RM8_Encoder.getPosition());
+    delta_Motor[WHEEL_FL] = wrapEncoderValues((-1*coders[WHEEL_FL].getAbsolutePosition()) - RM2_Encoder.getPosition());
+    delta_Motor[WHEEL_FR] = wrapEncoderValues((-1*coders[WHEEL_FR].getAbsolutePosition()) - RM4_Encoder.getPosition());
+    delta_Motor[WHEEL_BR] = wrapEncoderValues((-1*coders[WHEEL_BR].getAbsolutePosition()) - RM6_Encoder.getPosition());
+    delta_Motor[WHEEL_BL] = wrapEncoderValues((-1*coders[WHEEL_BL].getAbsolutePosition()) - RM8_Encoder.getPosition());
   }
 
   private void initPID(){
@@ -615,6 +617,7 @@ public class Robot extends TimedRobot {
       desired_translation[WHEEL_BR] = res3[1];
       desired_translation[WHEEL_BL] = res4[1];
     }
+    
   }
   
   /** This function is called periodically during teleoperated mode. */
@@ -660,12 +663,15 @@ public class Robot extends TimedRobot {
     double[] desired_translation = new double[]{0.0, 0.0, 0.0, 0.0};
 
     // Constants
-    double x = 1;
-    double y = 1;
+    double x = 0.31115;
+    double y = 0.31115;
     double d;
     double Vr_norm[] = new double[]{Vx/Vr, Vy/Vr};
 
-    if (omega == 0 & Vx != 0 & Vy != 0) {
+    double rad_s = 1.256637;
+    double m_s = 0.487804;
+
+    if (omega == 0 & (Vx != 0 | Vy != 0)) {
       // No rotation, CASE 1
       SmartDashboard.putNumber("Case", 1);
       double setAngle = ((Math.atan2(Vy,Vx) * 180) / Math.PI);
@@ -678,13 +684,30 @@ public class Robot extends TimedRobot {
       RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
       
       double setpoint = Vr * (Trans_maxRPM/7);
+      SmartDashboard.putNumber("setPoint for case 1", setpoint);
+
       TM1_PidController.setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
       TM3_PidController.setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
       TM5_PidController.setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
       TM7_PidController.setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+
+      SmartDashboard.putNumber("TM1 Desired_trans", desired_translation[WHEEL_FL]);
+      SmartDashboard.putNumber("TM3 Desired_trans", desired_translation[WHEEL_FR]);
+      SmartDashboard.putNumber("TM5 Desired_trans", desired_translation[WHEEL_BR]);
+      SmartDashboard.putNumber("TM7 Desired_trans", desired_translation[WHEEL_BL]);
+
+      SmartDashboard.putNumber("TM1 Desired * setpoint", setpoint * desired_translation[WHEEL_FL]);
+      SmartDashboard.putNumber("TM3 Desired * setpoint", setpoint * desired_translation[WHEEL_FR]);
+      SmartDashboard.putNumber("TM5 Desired * setpoint", setpoint * desired_translation[WHEEL_BR]);
+      SmartDashboard.putNumber("TM7 Desired * setpoint", setpoint * desired_translation[WHEEL_BL]);
+
+      SmartDashboard.putNumber("TM1 Velocity", TM1_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM3 Velocity", TM3_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM5 Velocity", TM5_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM7 Velocity", TM7_Encoder.getVelocity());
     }
 
-    else if (omega != 0 & Vx != 0 & Vy != 0) {
+    else if (omega != 0 & (Vx != 0 | Vy != 0)) {
       // General Case, CASE 2
       SmartDashboard.putNumber("Case", 2);
 
@@ -692,19 +715,19 @@ public class Robot extends TimedRobot {
       // NEW IMPLEMENTATION
       // ------------------------------------------------------------------------------------------------ //
 
-      double v1x = -1*Vy + (-1*(omega * y));
-      double v2x = -1*Vy + (-1*(omega * y));
-      double v3x = -1*Vy + (omega * y);
-      double v4x = -1*Vy + (omega * y);
+      double v1x = -1*Vy*m_s + (-1*(omega * rad_s * y));
+      double v2x = -1*Vy*m_s + (-1*(omega* rad_s * y));
+      double v3x = -1*Vy*m_s + (omega* rad_s * y);
+      double v4x = -1*Vy*m_s + (omega* rad_s * y);
       SmartDashboard.putNumber("v1x", v1x);
       SmartDashboard.putNumber("v2x", v2x);
       SmartDashboard.putNumber("v3x", v3x);
       SmartDashboard.putNumber("v4x", v4x);
 
-      double v1y = Vx + (-1*(omega * x));
-      double v2y = Vx + (omega * x);
-      double v3y = Vx + (omega * x);
-      double v4y = Vx + (-1*(omega * x));
+      double v1y = Vx*m_s + (-1*(omega* rad_s * x));
+      double v2y = Vx*m_s + (omega* rad_s * x);
+      double v3y = Vx*m_s + (omega* rad_s * x);
+      double v4y = Vx*m_s + (-1*(omega* rad_s * x));
 
       SmartDashboard.putNumber("v1y", v1y);
       SmartDashboard.putNumber("v2y", v2y);
@@ -725,41 +748,6 @@ public class Robot extends TimedRobot {
       SmartDashboard.putNumber("Omega_wheel2", Omega_wheel2);
       SmartDashboard.putNumber("Omega_wheel3", Omega_wheel3);
       SmartDashboard.putNumber("Omega_wheel4", Omega_wheel4);
-
-      // ------------------------------------------------------------------------------------------------ //
-      // OUR IMPLEMENTATION
-      // ------------------------------------------------------------------------------------------------ //
-
-      // d = Vr/omega;
-      // SmartDashboard.putNumber("d", d);
-
-      // double ICC[] = new double[]{d*(-1)*Vr_norm[1], d*Vr_norm[0]};
-      // SmartDashboard.putNumber("ICC[0]", ICC[0]);
-      // SmartDashboard.putNumber("ICC[1]", ICC[1]);
-
-      // double q1[] = new double[]{ICC[0] + x, ICC[1] - y};
-      // double q2[] = new double[]{ICC[0] - x, ICC[1] - y};
-      // double q3[] = new double[]{ICC[0] - x, ICC[1] + y};
-      // double q4[] = new double[]{ICC[0] + x, ICC[1] + y};
-      // // double Vwheel1 = mag(q1[0], q1[1]) * omega;
-      // // double Vwheel2 = mag(q2[0], q2[1]) * omega;
-      // // double Vwheel3 = mag(q3[0], q3[1]) * omega;
-      // // double Vwheel4 = mag(q4[0], q4[1]) * omega;
-  
-      // // SmartDashboard.putNumber("Vwheel1", Vwheel1);
-      // // SmartDashboard.putNumber("Vwheel2", Vwheel2);
-      // // SmartDashboard.putNumber("Vwheel3", Vwheel3);
-      // // SmartDashboard.putNumber("Vwheel4", Vwheel4);
-
-      // double Omega_wheel1 = (Math.atan2((-1)*q1[0], q1[1]) * 180) / Math.PI;
-      // double Omega_wheel2 = (Math.atan2((-1)*q2[0], q2[1]) * 180) / Math.PI;
-      // double Omega_wheel3 = (Math.atan2((-1)*q3[0], q3[1]) * 180) / Math.PI;
-      // double Omega_wheel4 = (Math.atan2((-1)*q4[0], q4[1]) * 180) / Math.PI;
-
-      // SmartDashboard.putNumber("Omega_wheel1", Omega_wheel1);
-      // SmartDashboard.putNumber("Omega_wheel2", Omega_wheel2);
-      // SmartDashboard.putNumber("Omega_wheel3", Omega_wheel3);
-      // SmartDashboard.putNumber("Omega_wheel4", Omega_wheel4);
 
       double[] DESIRED = new double[] {Omega_wheel1, Omega_wheel2, Omega_wheel3, Omega_wheel4};
 
@@ -797,6 +785,21 @@ public class Robot extends TimedRobot {
       TM3_PidController.setReference(setPoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
       TM5_PidController.setReference(setPoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
       TM7_PidController.setReference(setPoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+
+      SmartDashboard.putNumber("TM1 Desired_trans", desired_translation[WHEEL_FL]);
+      SmartDashboard.putNumber("TM3 Desired_trans", desired_translation[WHEEL_FR]);
+      SmartDashboard.putNumber("TM5 Desired_trans", desired_translation[WHEEL_BR]);
+      SmartDashboard.putNumber("TM7 Desired_trans", desired_translation[WHEEL_BL]);
+
+      SmartDashboard.putNumber("TM1 Desired * setpoint", setPoint * desired_translation[WHEEL_FL]);
+      SmartDashboard.putNumber("TM3 Desired * setpoint", setPoint * desired_translation[WHEEL_FR]);
+      SmartDashboard.putNumber("TM5 Desired * setpoint", setPoint * desired_translation[WHEEL_BR]);
+      SmartDashboard.putNumber("TM7 Desired * setpoint", setPoint * desired_translation[WHEEL_BL]);
+
+      SmartDashboard.putNumber("TM1 Velocity", TM1_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM3 Velocity", TM3_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM5 Velocity", TM5_Encoder.getVelocity());
+      SmartDashboard.putNumber("TM7 Velocity", TM7_Encoder.getVelocity());
   } 
 
   else {
