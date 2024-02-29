@@ -160,11 +160,11 @@ public class Robot extends TimedRobot {
    */
   @Override
   public void robotInit() {
-    // // initialize vision
-    // initVision();
+    // initialize vision
+    initVision();
 
     // initialize PID
-    // initPID();
+    initPID();
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -762,7 +762,7 @@ public class Robot extends TimedRobot {
       RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
       RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
       
-      double setpoint = Vr * (Trans_maxRPM/7);
+      double setpoint = Vr * (Trans_maxRPM/6);
       SmartDashboard.putNumber("setPoint for case 1", setpoint);
 
       TM1_PidController.setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
@@ -840,7 +840,7 @@ public class Robot extends TimedRobot {
       RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
       RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      double[] setpoint = new double[]{q1 * Trans_maxRPM/7, q2 * Trans_maxRPM/7, q3 * Trans_maxRPM/7, q4 * Trans_maxRPM/7};
+      double[] setpoint = new double[]{q1 * Trans_maxRPM/6, q2 * Trans_maxRPM/6, q3 * Trans_maxRPM/6, q4 * Trans_maxRPM/6};
 
       TM1_PidController.setReference(desired_translation[WHEEL_FL] * setpoint[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
       TM3_PidController.setReference(desired_translation[WHEEL_FR] * setpoint[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
@@ -885,7 +885,7 @@ public class Robot extends TimedRobot {
       RM6_PidController.setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
       RM8_PidController.setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      double setpoint = omega * (Trans_maxRPM/7);
+      double setpoint = omega * (Trans_maxRPM/6);
       TM1_PidController.setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
       TM3_PidController.setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
       TM5_PidController.setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
