@@ -27,11 +27,19 @@ import edu.wpi.first.cscore.UsbCamera;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Rect;
+import org.opencv.core.CvType;
 import org.opencv.imgproc.Imgproc;
 
 import javax.management.Descriptor;
 
 import org.opencv.core.Core;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.Random;
 
 import com.ctre.phoenix.sensors.CANCoder;
 
@@ -137,10 +145,14 @@ public class Robot extends TimedRobot {
   public final double[] alpha_Motor = new double[]{14.589844, 51.064453, 117.949219, 124.365234};
   public double[] delta_Motor = new double[]{0.0, 0.0, 0.0, 0.0};
 
-  // Vision
+  // Vision Variables
   private Thread visionThread;
-  private final int imgWidth = 640;
-  private final int imgHeight = 480;
+  private final int imgWidth = 320; // 320
+  private final int imgHeight = 240; // 240
+  private Random rng = new Random(12345);
+  private final int maxObjectColors = 5;
+  private final boolean verbose = false;
+
 
   /**
    * This function is run when the robot is first started up and should be used for any
@@ -152,7 +164,7 @@ public class Robot extends TimedRobot {
     // initVision();
 
     // initialize PID
-    initPID();
+    // initPID();
   }
 
   /** This function is run once each time the robot enters autonomous mode. */
@@ -261,15 +273,7 @@ public class Robot extends TimedRobot {
   private void printDB(String name, String s){ // print 1 value
     SmartDashboard.putString(name, s);
   }
-  // private void printDB(String[] names, double[] vals){ // print a list of values
-  //   for(int i = 0; i < vals.length; i++){
-  //     printDB(names[i], vals[i]);
-  //   }
-  // }
-
-  /*
-   * Initializes PID constants to all motor controllers
-   */
+  
   private void initPID(boolean verbose){
 
     // Rotation PID controllers
@@ -427,61 +431,137 @@ public class Robot extends TimedRobot {
     initPID(false);
   }
 
+  // Computer Vision Methods ---
+
+  /*
+   * Calculate center of rectangle
+   */
+
+   private Point rectCenter(Rect r){
+      return new Point(r.tl().x + (r.width/2.0), r.tl().y + (r.height/2.0));
+   }
+
   /*
    * Initializes Computer Vision
    */
   private void initVision(){
 
+    // colors
+    Scalar redColor = new Scalar(0, 0, 255);
+    Scalar yellowColor = new Scalar(0, 255, 255);
+    Scalar greenColor = new Scalar(0, 255, 0);
+    Scalar blueColor = new Scalar(255, 0, 0);
+    Scalar pinkColor = new Scalar(255, 0, 255);
+
+    // BGR thresholding values
+    Scalar redLower = new Scalar(0, 0, 55);
+    Scalar redUpper = new Scalar(80, 35, 255);
+    
+    Scalar yellowLower = new Scalar(0, 150, 175);
+    Scalar yellowUpper = new Scalar(140, 200, 230);
+
+
+    // gaussian blur
+    Size gb = new Size(7, 7);
+
     visionThread = new Thread(() -> {
       // add USB camera, create server for SmartDashboard
       UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
-      // UsbCamera usbCamera = new UsbCamera("USB Camera 0", 0);
       usbCamera.setResolution(imgWidth, imgHeight);
 
       CvSink cvSink = CameraServer.getVideo(); // grab images from camera
       CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
-      Point upleft = new Point(50, 50);
-      Point downright = new Point(100, 100);
-      Scalar color = new Scalar(255, 255, 255);
       Mat sourceMat = new Mat();
-      Mat mask = new Mat();
-      Mat mask2 = new Mat();
+      Mat redMask = new Mat();
+      Mat yellowMask = new Mat();
+      // Mat mask = new Mat();
+      Mat black = Mat.zeros(imgHeight, imgWidth, 16);
+      // Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5.0, 5.0));
+      List<MatOfPoint> contoursRed = new ArrayList<MatOfPoint>();
+      Mat hierarchyRed = new Mat();
+      List<MatOfPoint> contoursYellow = new ArrayList<MatOfPoint>();
+      Mat hierarchyYellow = new Mat();
+      Rect br;
+      Rect biggestRed = new Rect(0, 0, 0, 0);
+      Rect biggestYellow = new Rect(0, 0, 0, 0);
 
-      // For HSV, hue range is [0,179]
-      // saturation range is [0,255]\// value range is [0,255]
-      Scalar redLower = new Scalar(155, 25, 0);
-      Scalar redUpper = new Scalar(180, 255, 255);
-
-      // 15 - 330 not red
-      Scalar redLower2 = new Scalar(0, 50, 50);
-      Scalar redUpper2 = new Scalar(15, 255, 255);
-      
+      // ~40 ms per loop
       while(true){ /// TODO: change condition later
-        if (cvSink.grabFrame(sourceMat) == 0) {
-          // Send the output the error.
-          outputStream.notifyError(cvSink.getError());
-          // skip the rest of the current iteration
-          continue; 
-        }
-        Scalar avg = Core.mean(sourceMat);
-        // debug statements
-        //System.out.println(avg);
-        //Imgproc.rectangle(sourceMat, upleft, downright, avg, -1, 8, 0); // draw a rectangle
-        Imgproc.cvtColor(sourceMat, sourceMat, Imgproc.COLOR_BGR2HSV); //convert to graysc ale
-        Core.inRange(sourceMat, redLower, redUpper, mask);
-        Core.inRange(sourceMat, redLower2, redUpper2, mask2);
-        Core.bitwise_or(mask, mask2, mask);
-        // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
-        // Core.bitwise_and(sourceMat, sourceMat, sourceMat, mask);
-        //  480*640*CV_8UC3
+        long startTime = System.currentTimeMillis();
+        
 
-        outputStream.putFrame(mask); // put processed image to smartdashboard
+        if (cvSink.grabFrame(sourceMat) != 0){
+
+          // gaussian blur
+          Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
+
+          // red thresholding
+          Core.inRange(sourceMat, redLower, redUpper, redMask);
+
+          // yellow thresholding
+          Core.inRange(sourceMat, yellowLower, yellowUpper, yellowMask);
+
+          // find bounding boxes
+          contoursRed = new ArrayList<MatOfPoint>();
+          contoursYellow = new ArrayList<MatOfPoint>();
+          biggestRed = new Rect(0, 0, 0, 0);
+          biggestYellow = new Rect(0, 0, 0, 0);
+          Imgproc.findContours(redMask, contoursRed, hierarchyRed, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+          Imgproc.findContours(yellowMask, contoursYellow, hierarchyYellow, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+          // System.out.println(contours.size());
+          black.copyTo(sourceMat);
+          for (int i = 0; i < Math.min(contoursRed.size(), maxObjectColors); i++) {
+            // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8, hierarchy, 0, new Point());
+            br = Imgproc.boundingRect(contoursRed.get(i));
+            if(br.area() > biggestRed.area()){
+              biggestRed = br;
+            }
+            if(verbose){
+              Imgproc.rectangle(sourceMat, br.tl(), br.br(), redColor, 1);
+            }
+          }
+
+          for (int i = 0; i < Math.min(contoursYellow.size(), maxObjectColors); i++) {
+            // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8, hierarchy, 0, new Point());
+            br = Imgproc.boundingRect(contoursYellow.get(i));
+            if(br.area() > biggestYellow.area()){
+              biggestYellow = br;
+            }
+            if(verbose){
+              Imgproc.rectangle(sourceMat, br.tl(), br.br(), yellowColor, 1);
+            }
+          }
+
+          sourceMat.setTo(yellowColor, yellowMask);
+          sourceMat.setTo(redColor, redMask);
+
+          if(!verbose){
+            Imgproc.rectangle(sourceMat, biggestRed.tl(), biggestRed.br(), redColor, 1);
+            Imgproc.rectangle(sourceMat, biggestYellow.tl(), biggestYellow.br(), yellowColor, 1);
+            Imgproc.circle(sourceMat, rectCenter(biggestRed), 3, blueColor, -1);
+            Imgproc.circle(sourceMat, rectCenter(biggestYellow), 3, blueColor, -1);
+          }
+
+          // output results
+          // black.copyTo(sourceMat);
+
+          outputStream.putFrame(sourceMat); // put processed image to smartdashboard
+          long endTime = System.currentTimeMillis();
+
+          System.out.println("Total execution time: " + (endTime - startTime));
+
+          SmartDashboard.putString("Biggest Red Center", rectCenter(biggestRed).toString());
+          SmartDashboard.putString("Biggest Yellow Center", rectCenter(biggestYellow).toString());
+        }
+
       }
+    
 
     });
 
-    visionThread.setDaemon(true); // set as daemon thread (low priority)
+    visionThread.setPriority(10); // highest priority
     visionThread.start(); // start vision thread
   }
   // ------------------------------------------------------------------------------

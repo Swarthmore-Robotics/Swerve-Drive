@@ -170,3 +170,11 @@ out/
 
 # Simulation GUI and other tools window save file
 *-window.json
+
+.gradle/
+bin/
+build/
+
+../.gradle/
+../bin/
+../build/
