@@ -93,7 +93,6 @@ public class Robot extends TimedRobot {
   private final Timer m_Timer = new Timer();
 
   private double rotConvFactor = 5.62279270244;
-  // private double transConvFactor = 1;
   private double transConvFactor = 0.1875; // RPM
   // private double transConvFactor = 0.0014961835; // m/s
 
@@ -118,7 +117,6 @@ public class Robot extends TimedRobot {
 
   // Translation Motor PID Constants
   public double Trans_kP = 2e-4;
-  // public double Trans_kI = 1e-6;
   public double Trans_kI = 0;
   public double Trans_kD = 0;
   public double Trans_kIz = 0; 
@@ -140,166 +138,9 @@ public class Robot extends TimedRobot {
   private final int maxObjectColors = 5;
   private final boolean verbose = false;
 
-  /**
-   * This function is run when the robot is first started up and should be used for any
-   * initialization code.
-   */
-  @Override
-  public void robotInit() {
-    // // initialize vision
-    // initVision();
-
-    // initialize PID
-    initPID();
-  }
-
-  /** This function is run once each time the robot enters autonomous mode. */
-  @Override
-  public void autonomousInit() {
-    TranslationMotors[WHEEL_FL].setIdleMode(IdleMode.kCoast);
-    TranslationMotors[WHEEL_FR].setIdleMode(IdleMode.kCoast);
-    TranslationMotors[WHEEL_BR].setIdleMode(IdleMode.kCoast);
-    TranslationMotors[WHEEL_BL].setIdleMode(IdleMode.kCoast);
-    m_Timer.reset();
-    m_Timer.start();
-
-  }
-
-  /** This function is called periodically during autonomous. */
-  @Override
-  public void autonomousPeriodic() {
-
-    double[]current_abs = new double[]{
-      coders[WHEEL_FL].getAbsolutePosition(),
-      coders[WHEEL_FR].getAbsolutePosition(),
-      coders[WHEEL_BR].getAbsolutePosition(),
-      coders[WHEEL_BL].getAbsolutePosition()
-    };
-    double[]current_rel = new double[]{
-      RM_Encoders.get(WHEEL_FL).getPosition(),
-      RM_Encoders.get(WHEEL_FR).getPosition(),
-      RM_Encoders.get(WHEEL_BR).getPosition(),
-      RM_Encoders.get(WHEEL_BL).getPosition()
-    };
-
-    // Print absolute CANCoder values
-    printDB("CANCODER", current_abs);
-
-    // Print relative Encoder values
-    printDB("RM_Encoder.getPosition()", current_rel);
-    
-    // Initialize empty arrays for RM and TM setPoint values to be used later by setReference 
-    double[] desired_body = new double[]{0.0, 0.0, 0.0, 0.0};
-    double[] desired_rel1 = new double[]{0.0, 0.0, 0.0, 0.0};
-    double[] desired_translation = new double[]{0.0, 0.0, 0.0, 0.0};
-
-    // in case 3, set each wheel angle to some 90 degree offset of each other
-    double setAngle = 0.0;
-    double[] DESIRED = new double[] {0, 0, 0, 0};
-
-    //move 1m forward
-    if (m_Timer.get() < 1.5709) {
-      setAngle = 0.0;
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
-  
-      double setpoint = 1 * (Trans_maxRPM/6);
-      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
-      
-      SmartDashboard.putNumber("Timer: ", m_Timer.get());
-    }
-
-    // //time discontinuity: 1 second
-    // //move 1m backwards
-    else if (m_Timer.get() > 2.5709 && m_Timer.get() < 4.1418) {
-      setAngle = 0.0;
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-
-      SmartDashboard.putNumber("Timer 2: ", m_Timer.get());
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
-  
-      double setpoint = -1 * (Trans_maxRPM/6);
-      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
-    }
-
-    //time discontinuity: 1 second
-    //move 1m right
-    else if (m_Timer.get() > 5.1418 && m_Timer.get() < 6.7127) {
-      setAngle = 90;
-      DESIRED[0] = setAngle;
-      DESIRED[1] = setAngle;
-      DESIRED[2] = setAngle;
-      DESIRED[3] = setAngle;
-
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-      
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
-  
-      double setpoint = 1 * (Trans_maxRPM/6);
-      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
-      SmartDashboard.putNumber("Timer 3: ", m_Timer.get());
-    }
-     //time discontinuity: 1 second
-    //move 1m left
-    else if (m_Timer.get() > 7.7127 && m_Timer.get() < 8.2836) {
-      setAngle = 90;
-      DESIRED[0] = setAngle;
-      DESIRED[1] = setAngle;
-      DESIRED[2] = setAngle;
-      DESIRED[3] = setAngle;
-
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
-  
-      double setpoint = -1 * (Trans_maxRPM/6);
-      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
-      SmartDashboard.putNumber("Timer 4: ", m_Timer.get());
-    }
-
-    else {
-      // command everything to zero
-      TranslationMotors[WHEEL_FL].setIdleMode(IdleMode.kBrake);
-      TranslationMotors[WHEEL_FR].setIdleMode(IdleMode.kBrake);
-      TranslationMotors[WHEEL_BR].setIdleMode(IdleMode.kBrake);
-      TranslationMotors[WHEEL_BL].setIdleMode(IdleMode.kBrake);
-      stopMotors();
-    }
-
-  }
-
-  /** This function is called once each time the robot enters teleoperated mode. */
-  @Override
-  public void teleopInit() {
-
-  }
-
-  // Private function defintions
-  // ------------------------------------------------------------------------------
+  /* -------------------------------------------------------------------------*/
+  /* ----------------------------- Swerve Methods ----------------------------*/
+  /* -------------------------------------------------------------------------*/
 
   /*
    * Returns a filtered value of some raw input by setting values in a range
@@ -314,17 +155,6 @@ public class Robot extends TimedRobot {
     }
   }
 
-  private void stopMotors() {
-    RotationMotors[WHEEL_FL].set(0);
-    RotationMotors[WHEEL_FR].set(0);
-    RotationMotors[WHEEL_BR].set(0);
-    RotationMotors[WHEEL_BL].set(0);
-
-    TranslationMotors[WHEEL_FL].set(0);
-    TranslationMotors[WHEEL_FR].set(0);
-    TranslationMotors[WHEEL_BR].set(0);
-    TranslationMotors[WHEEL_BL].set(0);
-  }
   /*
    * Returns the magnitude of elements x and y
    */
@@ -384,45 +214,41 @@ public class Robot extends TimedRobot {
     return res;
   }
 
-  /*
-   * Wrapper functions to more easily output values to SmartDashboard
-   * cleaner code
-   */
-  private void printDB(String name, double val){ // print 1 value
-    SmartDashboard.putNumber(name, val);
-  }
-  private void printDB(String name, boolean bool){ // print 1 value
-    SmartDashboard.putBoolean(name, bool);
-  }
-  private void printDB(String name, String s){ // print 1 value
-    SmartDashboard.putString(name, s);
-  }
-  private void printDB(String name, double[] arr){ // print array of values
-    String wheel_orientation = "";
+  private void setMotorPID(List<SparkMaxPIDController> pidControllers, String R_T_Flag) {
+    
+    int smartMotionSlot = 0;
 
-    for (int i = 0; i < arr.length; i++) {
+    for (int i = 0; i < pidControllers.size(); i++) {
       
-      switch(i) {
-        case(0):
-        wheel_orientation = "WHEEL_FL";
-        break;
-        case(1):
-        wheel_orientation = "WHEEL_FR";
-        break;
-        case(2):
-        wheel_orientation = "WHEEL_BR";
-        break;
-        case(3):
-        wheel_orientation = "WHEEL_BL";
-        break;
+      if (R_T_Flag == "R") {
+        pidControllers.get(i).setP(Rot_kP);
+        pidControllers.get(i).setI(Rot_kI);
+        pidControllers.get(i).setD(Rot_kD);
+        pidControllers.get(i).setIZone(Rot_kIz);
+        pidControllers.get(i).setFF(Rot_kFF);
+        pidControllers.get(i).setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
+        
+        pidControllers.get(i).setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
+        pidControllers.get(i).setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
+        pidControllers.get(i).setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
+        pidControllers.get(i).setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot); 
       }
-
-      SmartDashboard.putNumber(name + "[" + wheel_orientation + "]", arr[i]);
+      else if (R_T_Flag == "T") {
+        pidControllers.get(i).setP(Trans_kP);
+        pidControllers.get(i).setI(Trans_kI);
+        pidControllers.get(i).setD(Trans_kD);
+        pidControllers.get(i).setIZone(Trans_kIz);
+        pidControllers.get(i).setFF(Trans_kFF);
+        pidControllers.get(i).setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
+      }
+      
     }
-    // SmartDashboard.putString(name, s);
   }
-  
-  private void initPID(boolean verbose){
+
+  /*
+   * Initializes Motor PID Constants
+   */
+  private void initPID(){
 
     // Rotation PID controllers
     SparkMaxPIDController RM2_PidController = RotationMotors[WHEEL_FL].getPIDController();
@@ -451,33 +277,7 @@ public class Robot extends TimedRobot {
     RM_Encoders.add(RM6_Encoder);
     RM_Encoders.add(RM8_Encoder);
 
-    RM2_PidController.setP(Rot_kP);
-    RM2_PidController.setI(Rot_kI);
-    RM2_PidController.setD(Rot_kD);
-    RM2_PidController.setIZone(Rot_kIz);
-    RM2_PidController.setFF(Rot_kFF);
-    RM2_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
-
-    RM4_PidController.setP(Rot_kP);
-    RM4_PidController.setI(Rot_kI);
-    RM4_PidController.setD(Rot_kD);
-    RM4_PidController.setIZone(Rot_kIz);
-    RM4_PidController.setFF(Rot_kFF);
-    RM4_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
-
-    RM6_PidController.setP(Rot_kP);
-    RM6_PidController.setI(Rot_kI);
-    RM6_PidController.setD(Rot_kD);
-    RM6_PidController.setIZone(Rot_kIz);
-    RM6_PidController.setFF(Rot_kFF);
-    RM6_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
-
-    RM8_PidController.setP(Rot_kP);
-    RM8_PidController.setI(Rot_kI);
-    RM8_PidController.setD(Rot_kD);
-    RM8_PidController.setIZone(Rot_kIz);
-    RM8_PidController.setFF(Rot_kFF);
-    RM8_PidController.setOutputRange(Rot_kMinOutput, Rot_kMaxOutput);
+    setMotorPID(RM_PIDControllers,"R");
 
     // Translation PID controllers
     SparkMaxPIDController TM1_PidController = TranslationMotors[WHEEL_FL].getPIDController();
@@ -506,54 +306,7 @@ public class Robot extends TimedRobot {
     TM_Encoders.add(TM5_Encoder);
     TM_Encoders.add(TM7_Encoder);
 
-    TM1_PidController.setP(Trans_kP);
-    TM1_PidController.setI(Trans_kI);
-    TM1_PidController.setD(Trans_kD);
-    TM1_PidController.setIZone(Trans_kIz);
-    TM1_PidController.setFF(Trans_kFF);
-    TM1_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
-
-    TM3_PidController.setP(Trans_kP);
-    TM3_PidController.setI(Trans_kI);
-    TM3_PidController.setD(Trans_kD);
-    TM3_PidController.setIZone(Trans_kIz);
-    TM3_PidController.setFF(Trans_kFF);
-    TM3_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
-
-    TM5_PidController.setP(Trans_kP);
-    TM5_PidController.setI(Trans_kI);
-    TM5_PidController.setD(Trans_kD);
-    TM5_PidController.setIZone(Trans_kIz);
-    TM5_PidController.setFF(Trans_kFF);
-    TM5_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
-
-    TM7_PidController.setP(Trans_kP);
-    TM7_PidController.setI(Trans_kI);
-    TM7_PidController.setD(Trans_kD);
-    TM7_PidController.setIZone(Trans_kIz);
-    TM7_PidController.setFF(Trans_kFF);
-    TM7_PidController.setOutputRange(Trans_kMinOutput, Trans_kMaxOutput);
-
-    int smartMotionSlot = 0;
-    RM2_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
-    RM2_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
-    RM2_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
-    RM2_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
-
-    RM4_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
-    RM4_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
-    RM4_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
-    RM4_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
-
-    RM6_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
-    RM6_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
-    RM6_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
-    RM6_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
-
-    RM8_PidController.setSmartMotionMaxVelocity(Rot_maxVel, smartMotionSlot);
-    RM8_PidController.setSmartMotionMinOutputVelocity(Rot_minVel, smartMotionSlot);
-    RM8_PidController.setSmartMotionMaxAccel(Rot_maxAcc, smartMotionSlot);
-    RM8_PidController.setSmartMotionAllowedClosedLoopError(Rot_allowedErr, smartMotionSlot);
+    setMotorPID(TM_PIDControllers,"T");
 
     TranslationMotors[WHEEL_FL].setSmartCurrentLimit(40);
     TranslationMotors[WHEEL_FR].setSmartCurrentLimit(40);
@@ -565,41 +318,89 @@ public class Robot extends TimedRobot {
     RotationMotors[WHEEL_BR].setSmartCurrentLimit(20);
     RotationMotors[WHEEL_BL].setSmartCurrentLimit(20);
 
-    if(verbose){
-      // display PID coefficients on SmartDashboard
-      // SmartDashboard.putNumber("P Gain", kP);
-      // SmartDashboard.putNumber("I Gain", kI);
-      // SmartDashboard.putNumber("D Gain", kD);
-      // SmartDashboard.putNumber("I Zone", kIz);
-      // SmartDashboard.putNumber("Feed Forward", kFF);
-      // SmartDashboard.putNumber("Max Output", kMaxOutput);
-      // SmartDashboard.putNumber("Min Output", kMinOutput);
-
-      // // display Smart Motion coefficients
-      // SmartDashboard.putNumber("Max Velocity", maxVel);
-      // SmartDashboard.putNumber("Min Velocity", minVel);
-      // SmartDashboard.putNumber("Max Acceleration", maxAcc);
-      // SmartDashboard.putNumber("Allowed Closed Loop Error", allowedErr);
-      // SmartDashboard.putNumber("Set Position", 0);
-      // SmartDashboard.putNumber("Set Velocity", 0);
-
-      // button to toggle between velocity and smart motion modes
-      SmartDashboard.putBoolean("Mode", true);
-    }
-
     // define abs to relative encoder offset values
     delta_Motor[WHEEL_FL] = wrapEncoderValues((-1*coders[WHEEL_FL].getAbsolutePosition()) - RM_Encoders.get(WHEEL_FL).getPosition());
     delta_Motor[WHEEL_FR] = wrapEncoderValues((-1*coders[WHEEL_FR].getAbsolutePosition()) - RM_Encoders.get(WHEEL_FR).getPosition());
     delta_Motor[WHEEL_BR] = wrapEncoderValues((-1*coders[WHEEL_BR].getAbsolutePosition()) - RM_Encoders.get(WHEEL_BR).getPosition());
     delta_Motor[WHEEL_BL] = wrapEncoderValues((-1*coders[WHEEL_BL].getAbsolutePosition()) - RM_Encoders.get(WHEEL_BL).getPosition());
   }
+  
+  /*
+   * Sets the desired wheel angles and direction of translation for each wheel module, per case
+   */
+  private void set_desired(double[] desired_body, double[] DESIRED, double[] current_rel, double[] desired_rel1, double[] desired_translation, int CASE) {
 
-  private void initPID(){
-     // init PID without outputting to dashboard
-    initPID(false);
+    // Set desired angles based on input parameter DESIRED storing desired wheel angles in robot frame
+    desired_body[WHEEL_FL] = DESIRED[WHEEL_FL];
+    desired_body[WHEEL_FR] = DESIRED[WHEEL_FR];
+    desired_body[WHEEL_BR] = DESIRED[WHEEL_BR];
+    desired_body[WHEEL_BL] = DESIRED[WHEEL_BL];
+
+    // Subtract off absolute encoder offset to get desired wheel angles in terms of absolute encoder
+    double[] desired_abs = new double[]{
+      wrapEncoderValues(desired_body[WHEEL_FL] - alpha_Motor[WHEEL_FL]),
+      wrapEncoderValues(desired_body[WHEEL_FR] - alpha_Motor[WHEEL_FR]),
+      wrapEncoderValues(desired_body[WHEEL_BR] - alpha_Motor[WHEEL_BR]),
+      wrapEncoderValues(desired_body[WHEEL_BL] - alpha_Motor[WHEEL_BL])
+    };
+    
+    // Subtract off relative encoder offset to get desired wheel angles in terms of relative encoder
+    double[] desired_rel = new double[]{
+      -(desired_abs[WHEEL_FL] + delta_Motor[WHEEL_FL]),
+      -(desired_abs[WHEEL_FR] + delta_Motor[WHEEL_FR]),
+      -(desired_abs[WHEEL_BR] + delta_Motor[WHEEL_BR]),
+      -(desired_abs[WHEEL_BL] + delta_Motor[WHEEL_BL])
+    };
+    
+    // Given a desired angle and current angle both in terms of relative encoder, find optimal path
+    // to the desired angle from current angle
+    double[] res1 = wrapWheelCommand(desired_rel[WHEEL_FL], current_rel[WHEEL_FL]);
+    double[] res2 = wrapWheelCommand(desired_rel[WHEEL_FR], current_rel[WHEEL_FR]);
+    double[] res3 = wrapWheelCommand(desired_rel[WHEEL_BR], current_rel[WHEEL_BR]);
+    double[] res4 = wrapWheelCommand(desired_rel[WHEEL_BL], current_rel[WHEEL_BL]);
+
+    // Store results into appropriate arrays:
+    // Rotation results
+    desired_rel1[WHEEL_FL] = res1[0];
+    desired_rel1[WHEEL_FR] = res2[0];
+    desired_rel1[WHEEL_BR] = res3[0];
+    desired_rel1[WHEEL_BL] = res4[0];
+    
+    desired_translation[WHEEL_FL] = res1[1];
+    desired_translation[WHEEL_FR] = res2[1];
+    desired_translation[WHEEL_BR] = res3[1];
+    desired_translation[WHEEL_BL] = res4[1];
+
+    // No rotation, CASE 1
+    if (CASE == 1 || CASE == 2) {
+
+      // Translation results (whether to flip or not)
+      desired_translation[WHEEL_FL] = -1 * res1[1];
+      desired_translation[WHEEL_FR] = res2[1];
+      desired_translation[WHEEL_BR] = -1 * res3[1];
+      desired_translation[WHEEL_BL] = res4[1];
+      }
+    
   }
 
-  // Computer Vision Methods
+  /*
+   * Sets all motor speeds to 0
+   */
+  private void stopMotors() {
+    RotationMotors[WHEEL_FL].set(0);
+    RotationMotors[WHEEL_FR].set(0);
+    RotationMotors[WHEEL_BR].set(0);
+    RotationMotors[WHEEL_BL].set(0);
+
+    TranslationMotors[WHEEL_FL].set(0);
+    TranslationMotors[WHEEL_FR].set(0);
+    TranslationMotors[WHEEL_BR].set(0);
+    TranslationMotors[WHEEL_BL].set(0);
+  }
+
+  /* -------------------------------------------------------------------------*/
+  /* ------------------------ Computer Vision Methods ------------------------*/
+  /* -------------------------------------------------------------------------*/
 
   /*
    * Calculate center of rectangle
@@ -730,135 +531,249 @@ public class Robot extends TimedRobot {
     visionThread.setPriority(10); // highest priority
     visionThread.start(); // start vision thread
   }
-  // ------------------------------------------------------------------------------
 
   /*
-   * Sets the desired wheel angles and direction of translation for each wheel module, per case
+   * Wrapper functions to more easily output values to SmartDashboard
+   * cleaner code
    */
-  private void set_desired(double[] desired_body, double[] DESIRED, double[] current_rel, double[] desired_rel1, double[] desired_translation, int CASE) {
+  private void printDB(String name, double val){ // print 1 value
+    SmartDashboard.putNumber(name, val);
+  }
+  private void printDB(String name, boolean bool){ // print 1 value
+    SmartDashboard.putBoolean(name, bool);
+  }
+  private void printDB(String name, String s){ // print 1 value
+    SmartDashboard.putString(name, s);
+  }
+  private void printDB(String name, double[] arr){ // print array of values
+    String wheel_orientation = "";
 
-    // No rotation, CASE 1
-    if (CASE == 1) {
-      // Set desired angles based on input parameter DESIRED storing desired wheel angles in robot frame
-      desired_body[WHEEL_FL] = DESIRED[WHEEL_FL];
-      desired_body[WHEEL_FR] = DESIRED[WHEEL_FR];
-      desired_body[WHEEL_BR] = DESIRED[WHEEL_BR];
-      desired_body[WHEEL_BL] = DESIRED[WHEEL_BL];
-
-      // Subtract off absolute encoder offset to get desired wheel angles in terms of absolute encoder
-      double[] desired_abs = new double[]{
-        wrapEncoderValues(desired_body[WHEEL_FL] - alpha_Motor[WHEEL_FL]),
-        wrapEncoderValues(desired_body[WHEEL_FR] - alpha_Motor[WHEEL_FR]),
-        wrapEncoderValues(desired_body[WHEEL_BR] - alpha_Motor[WHEEL_BR]),
-        wrapEncoderValues(desired_body[WHEEL_BL] - alpha_Motor[WHEEL_BL])
-      };
+    for (int i = 0; i < arr.length; i++) {
       
-      // Subtract off relative encoder offset to get desired wheel angles in terms of relative encoder
-      double[] desired_rel = new double[]{
-        -(desired_abs[WHEEL_FL] + delta_Motor[WHEEL_FL]),
-        -(desired_abs[WHEEL_FR] + delta_Motor[WHEEL_FR]),
-        -(desired_abs[WHEEL_BR] + delta_Motor[WHEEL_BR]),
-        -(desired_abs[WHEEL_BL] + delta_Motor[WHEEL_BL])
-      };
-      
-      // Given a desired angle and current angle both in terms of relative encoder, find optimal path
-      // to the desired angle from current angle
-      double[] res1 = wrapWheelCommand(desired_rel[WHEEL_FL], current_rel[WHEEL_FL]);
-      double[] res2 = wrapWheelCommand(desired_rel[WHEEL_FR], current_rel[WHEEL_FR]);
-      double[] res3 = wrapWheelCommand(desired_rel[WHEEL_BR], current_rel[WHEEL_BR]);
-      double[] res4 = wrapWheelCommand(desired_rel[WHEEL_BL], current_rel[WHEEL_BL]);
-      
-      // Store results into appropriate arrays:
-      // Rotation results
-      desired_rel1[WHEEL_FL] = res1[0];
-      desired_rel1[WHEEL_FR] = res2[0];
-      desired_rel1[WHEEL_BR] = res3[0];
-      desired_rel1[WHEEL_BL] = res4[0];
-
-      // Translation results (whether to flip or not)
-      desired_translation[WHEEL_FL] = -1 * res1[1];
-      desired_translation[WHEEL_FR] = res2[1];
-      desired_translation[WHEEL_BR] = -1 * res3[1];
-      desired_translation[WHEEL_BL] = res4[1];
+      switch(i) {
+        case(0):
+        wheel_orientation = "WHEEL_FL";
+        break;
+        case(1):
+        wheel_orientation = "WHEEL_FR";
+        break;
+        case(2):
+        wheel_orientation = "WHEEL_BR";
+        break;
+        case(3):
+        wheel_orientation = "WHEEL_BL";
+        break;
       }
 
-    // General Case, CASE 2
-    if (CASE == 2) {
-      desired_body[WHEEL_FL] = DESIRED[WHEEL_FL];
-      desired_body[WHEEL_FR] = DESIRED[WHEEL_FR];
-      desired_body[WHEEL_BR] = DESIRED[WHEEL_BR];
-      desired_body[WHEEL_BL] = DESIRED[WHEEL_BL];
+      SmartDashboard.putNumber(name + "[" + wheel_orientation + "]", arr[i]);
 
-      double[] desired_abs = new double[]{
-        wrapEncoderValues(desired_body[WHEEL_FL] - alpha_Motor[WHEEL_FL]),
-        wrapEncoderValues(desired_body[WHEEL_FR] - alpha_Motor[WHEEL_FR]),
-        wrapEncoderValues(desired_body[WHEEL_BR] - alpha_Motor[WHEEL_BR]),
-        wrapEncoderValues(desired_body[WHEEL_BL] - alpha_Motor[WHEEL_BL])
-      };
-  
-      double[] desired_rel = new double[]{
-        -(desired_abs[WHEEL_FL] + delta_Motor[WHEEL_FL]),
-        -(desired_abs[WHEEL_FR] + delta_Motor[WHEEL_FR]),
-        -(desired_abs[WHEEL_BR] + delta_Motor[WHEEL_BR]),
-        -(desired_abs[WHEEL_BL] + delta_Motor[WHEEL_BL])
-      };
-  
-      double[] res1 = wrapWheelCommand(desired_rel[WHEEL_FL], current_rel[WHEEL_FL]);
-      double[] res2 = wrapWheelCommand(desired_rel[WHEEL_FR], current_rel[WHEEL_FR]);
-      double[] res3 = wrapWheelCommand(desired_rel[WHEEL_BR], current_rel[WHEEL_BR]);
-      double[] res4 = wrapWheelCommand(desired_rel[WHEEL_BL], current_rel[WHEEL_BL]);
-  
-      desired_rel1[WHEEL_FL] = res1[0];
-      desired_rel1[WHEEL_FR] = res2[0];
-      desired_rel1[WHEEL_BR] = res3[0];
-      desired_rel1[WHEEL_BL] = res4[0];
-
-      desired_translation[WHEEL_FL] = -1 * res1[1];
-      desired_translation[WHEEL_FR] = res2[1];
-      desired_translation[WHEEL_BR] = -1 * res3[1];
-      desired_translation[WHEEL_BL] = res4[1];
     }
-
-    // Rotate in place, CASE 3
-    else if (CASE == 3) {
-
-      desired_body[WHEEL_FL] = DESIRED[WHEEL_FL];
-      desired_body[WHEEL_FR] = DESIRED[WHEEL_FR];
-      desired_body[WHEEL_BR] = DESIRED[WHEEL_BR];
-      desired_body[WHEEL_BL] = DESIRED[WHEEL_BL];
-
-      double[] desired_abs = new double[]{
-        wrapEncoderValues(desired_body[WHEEL_FL] - alpha_Motor[WHEEL_FL]),
-        wrapEncoderValues(desired_body[WHEEL_FR] - alpha_Motor[WHEEL_FR]),
-        wrapEncoderValues(desired_body[WHEEL_BR] - alpha_Motor[WHEEL_BR]),
-        wrapEncoderValues(desired_body[WHEEL_BL] - alpha_Motor[WHEEL_BL])
-      };
-  
-      double[] desired_rel = new double[]{
-        -(desired_abs[WHEEL_FL] + delta_Motor[WHEEL_FL]),
-        -(desired_abs[WHEEL_FR] + delta_Motor[WHEEL_FR]),
-        -(desired_abs[WHEEL_BR] + delta_Motor[WHEEL_BR]),
-        -(desired_abs[WHEEL_BL] + delta_Motor[WHEEL_BL])
-      };
-  
-      double[] res1 = wrapWheelCommand(desired_rel[WHEEL_FL], current_rel[WHEEL_FL]);
-      double[] res2 = wrapWheelCommand(desired_rel[WHEEL_FR], current_rel[WHEEL_FR]);
-      double[] res3 = wrapWheelCommand(desired_rel[WHEEL_BR], current_rel[WHEEL_BR]);
-      double[] res4 = wrapWheelCommand(desired_rel[WHEEL_BL], current_rel[WHEEL_BL]);
-  
-      desired_rel1[WHEEL_FL] = res1[0];
-      desired_rel1[WHEEL_FR] = res2[0];
-      desired_rel1[WHEEL_BR] = res3[0];
-      desired_rel1[WHEEL_BL] = res4[0];
-
-      desired_translation[WHEEL_FL] = res1[1];
-      desired_translation[WHEEL_FR] = res2[1];
-      desired_translation[WHEEL_BR] = res3[1];
-      desired_translation[WHEEL_BL] = res4[1];
-    }
-    
   }
   
+  /**
+   * This function is run when the robot is first started up and should be used for any
+   * initialization code.
+   */
+  @Override
+  public void robotInit() {
+    // // initialize vision
+    // initVision();
+
+    // initialize PID
+    initPID();
+  }
+
+  /** This function is run once each time the robot enters autonomous mode. */
+  @Override
+  public void autonomousInit() {
+    TranslationMotors[WHEEL_FL].setIdleMode(IdleMode.kCoast);
+    TranslationMotors[WHEEL_FR].setIdleMode(IdleMode.kCoast);
+    TranslationMotors[WHEEL_BR].setIdleMode(IdleMode.kCoast);
+    TranslationMotors[WHEEL_BL].setIdleMode(IdleMode.kCoast);
+    m_Timer.reset();
+    m_Timer.start();
+
+  }
+
+  /** This function is called periodically during autonomous. */
+  @Override
+  public void autonomousPeriodic() {
+
+    double[]current_abs = new double[]{
+      coders[WHEEL_FL].getAbsolutePosition(),
+      coders[WHEEL_FR].getAbsolutePosition(),
+      coders[WHEEL_BR].getAbsolutePosition(),
+      coders[WHEEL_BL].getAbsolutePosition()
+    };
+    double[]current_rel = new double[]{
+      RM_Encoders.get(WHEEL_FL).getPosition(),
+      RM_Encoders.get(WHEEL_FR).getPosition(),
+      RM_Encoders.get(WHEEL_BR).getPosition(),
+      RM_Encoders.get(WHEEL_BL).getPosition()
+    };
+
+    // Print absolute CANCoder values
+    printDB("CANCODER", current_abs);
+
+    // Print relative Encoder values
+    printDB("RM_Encoder.getPosition()", current_rel);
+    
+    // Initialize empty arrays for RM and TM setPoint values to be used later by setReference 
+    double[] desired_body = new double[]{0.0, 0.0, 0.0, 0.0};
+    double[] desired_rel1 = new double[]{0.0, 0.0, 0.0, 0.0};
+    double[] desired_translation = new double[]{0.0, 0.0, 0.0, 0.0};
+
+    double setAngle = 0.0;
+    double[] DESIRED = new double[] {0, 0, 0, 0};
+
+    // move 1m forward
+    if (m_Timer.get() < 1.5709) {
+      setAngle = 0.0;
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+  
+      double setpoint = 1 * (Trans_maxRPM/6);
+      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+      
+      SmartDashboard.putNumber("Timer: ", m_Timer.get());
+    }
+
+    // time discontinuity: 1 second
+    // move 1m backwards
+    else if (m_Timer.get() > 2.5709 && m_Timer.get() < 4.1418) {
+      setAngle = 0.0;
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+
+      SmartDashboard.putNumber("Timer 2: ", m_Timer.get());
+      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+  
+      double setpoint = -1 * (Trans_maxRPM/6);
+      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+    }
+
+    // time discontinuity: 1 second
+    // move 1m right
+    else if (m_Timer.get() > 5.1418 && m_Timer.get() < 6.7127) {
+      setAngle = 90;
+      DESIRED[0] = setAngle;
+      DESIRED[1] = setAngle;
+      DESIRED[2] = setAngle;
+      DESIRED[3] = setAngle;
+
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+      
+      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+  
+      double setpoint = -1 * (Trans_maxRPM/6);
+      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+      SmartDashboard.putNumber("Timer 3: ", m_Timer.get());
+    }
+
+    // time discontinuity: 1 second
+    // move 1m left
+    else if (m_Timer.get() > 7.7127 && m_Timer.get() < 9.2836) {
+      setAngle = 90;
+      DESIRED[0] = setAngle;
+      DESIRED[1] = setAngle;
+      DESIRED[2] = setAngle;
+      DESIRED[3] = setAngle;
+
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+
+      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+  
+      double setpoint = 1 * (Trans_maxRPM/6);
+      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+      SmartDashboard.putNumber("Timer 4: ", m_Timer.get());
+    }
+
+    // time discontinuity: 1 second
+    // move 1m diagonally outward
+    else if (m_Timer.get() > 10.2836 && m_Timer.get() < 11.8545) {
+      setAngle = -45;
+      DESIRED[0] = setAngle;
+      DESIRED[1] = setAngle;
+      DESIRED[2] = setAngle;
+      DESIRED[3] = setAngle;
+
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+
+      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+  
+      double setpoint = 1 * (Trans_maxRPM/6);
+      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+      SmartDashboard.putNumber("Timer 4: ", m_Timer.get());
+    }
+
+    // time discontinuity: 1 second
+    // move 1m diagonally back to center
+    else if (m_Timer.get() > 12.8545 && m_Timer.get() < 14.4254) {
+      setAngle = -45;
+      DESIRED[0] = setAngle;
+      DESIRED[1] = setAngle;
+      DESIRED[2] = setAngle;
+      DESIRED[3] = setAngle;
+
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+
+      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+  
+      double setpoint = -1 * (Trans_maxRPM/6);
+      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR], CANSparkMax.ControlType.kVelocity);
+      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL], CANSparkMax.ControlType.kVelocity);
+      SmartDashboard.putNumber("Timer 4: ", m_Timer.get());
+    }
+
+    else {
+      // command everything to zero
+      TranslationMotors[WHEEL_FL].setIdleMode(IdleMode.kBrake);
+      TranslationMotors[WHEEL_FR].setIdleMode(IdleMode.kBrake);
+      TranslationMotors[WHEEL_BR].setIdleMode(IdleMode.kBrake);
+      TranslationMotors[WHEEL_BL].setIdleMode(IdleMode.kBrake);
+      stopMotors();
+    }
+
+  }
+
+  /** This function is called once each time the robot enters teleoperated mode. */
+  @Override
+  public void teleopInit() {}
+
   /** This function is called periodically during teleoperated mode. */
   @Override
   public void teleopPeriodic() {
@@ -903,17 +818,15 @@ public class Robot extends TimedRobot {
     double x = 12.75; //distance from chassis center to module - x-component
     double y = 12.75; //distance from chassis center to module - y-component
     double r = mag(x,y); //needed to make x,y dimensionless
-
-    double MAX_rad_s = 1.531707;
-    double MAX_m_s = 0.635617;
+    // double MAX_rad_s = 1.531707;
+    // double MAX_m_s = 0.635617;
     
     // No rotation, CASE 1
     if (omega == 0 & (Vx != 0 | Vy != 0)) {
       printDB("Case", 1);
 
       // define robot angle to be direction of joystick vectors, Vx and Vy
-      // double setAngle = ((Math.atan2(Vy,Vx) * 180) / Math.PI);
-      double setAngle = 0.0;
+      double setAngle = ((Math.atan2(Vy,Vx) * 180) / Math.PI);
 
       // in case 1, set every wheel to same desired setAngle
       double[] DESIRED = new double[]{setAngle, setAngle, setAngle, setAngle};
@@ -1015,8 +928,7 @@ public class Robot extends TimedRobot {
     
     // No input, CASE 4
     else {
-      SmartDashboard.putNumber("Case", 4);
-
+      printDB("Case", 4);
       // command everything to zero
       stopMotors();
     }
