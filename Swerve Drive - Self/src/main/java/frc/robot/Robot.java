@@ -145,6 +145,8 @@ public class Robot extends TimedRobot {
   private final int maxObjectColors = 5;
   private final boolean verbose = false;
   private Rect biggestRed;
+  private Rect biggestYellow;
+  private Rect biggestGreen;
 
   /* ------------------------------------------------------------------------- */
   /* ----------------------------- Swerve Methods ---------------------------- */
@@ -446,6 +448,7 @@ public class Robot extends TimedRobot {
    */
   private void initVision() {
 
+    // TODO: put into constants file
     // colors
     Scalar redColor = new Scalar(0, 0, 255);
     Scalar yellowColor = new Scalar(0, 255, 255);
@@ -476,29 +479,29 @@ public class Robot extends TimedRobot {
       CvSink cvSink = CameraServer.getVideo(); // grab images from camera
       CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
+      // Init variables
       Mat sourceMat = new Mat();
       Mat redMask = new Mat();
       Mat yellowMask = new Mat();
       Mat greenMask = new Mat();
-      // Mat mask = new Mat();
       Mat black = Mat.zeros(imgHeight, imgWidth, 16);
-      // Mat kernelOpen = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new
-      // Size(5.0, 5.0));
+
       List<MatOfPoint> contoursRed = new ArrayList<MatOfPoint>();
       Mat hierarchyRed = new Mat();
       List<MatOfPoint> contoursYellow = new ArrayList<MatOfPoint>();
       Mat hierarchyYellow = new Mat();
       List<MatOfPoint> contoursGreen = new ArrayList<MatOfPoint>();
       Mat hierarchyGreen = new Mat();
+
       Rect br;
       Rect tempBiggestYellow = new Rect(0, 0, 0, 0);
-      Rect biggestYellow = new Rect(0, 0, 0, 0);
       Rect tempBiggestRed = new Rect(0, 0, 0, 0);
       Rect tempBiggestGreen = new Rect(0, 0, 0, 0);
-      Rect biggestGreen = new Rect(0, 0, 0, 0);
+  
+      biggestYellow = new Rect(0, 0, 0, 0);
+      biggestGreen = new Rect(0, 0, 0, 0);
       biggestRed = new Rect(0, 0, 0, 0);
 
-      // ~40 ms per loop
       while (true) { /// TODO: change condition later
         long startTime = System.currentTimeMillis();
 
@@ -509,10 +512,8 @@ public class Robot extends TimedRobot {
 
           // red thresholding
           Core.inRange(sourceMat, redLower, redUpper, redMask);
-
           // yellow thresholding
           Core.inRange(sourceMat, yellowLower, yellowUpper, yellowMask);
-
           // green thresholding
           Core.inRange(sourceMat, greenLower, greenUpper, greenMask);
 
@@ -527,9 +528,9 @@ public class Robot extends TimedRobot {
           Imgproc.findContours(greenMask, contoursGreen, hierarchyGreen, Imgproc.RETR_EXTERNAL,
               Imgproc.CHAIN_APPROX_SIMPLE);
 
-          // System.out.println(contours.size());
+          // reset processed frame
           black.copyTo(sourceMat);
-
+          
           // RED
           if (contoursRed.size() == 0) {
             tempBiggestRed = nothing;
@@ -587,6 +588,7 @@ public class Robot extends TimedRobot {
           }
           biggestGreen = tempBiggestGreen;
 
+          // write to processed image
           sourceMat.setTo(yellowColor, yellowMask);
           sourceMat.setTo(redColor, redMask);
           sourceMat.setTo(greenColor, greenMask);
@@ -601,8 +603,6 @@ public class Robot extends TimedRobot {
           }
 
           // output results
-          // black.copyTo(sourceMat);
-
           outputStream.putFrame(sourceMat); // put processed image to smartdashboard
           long endTime = System.currentTimeMillis();
 
