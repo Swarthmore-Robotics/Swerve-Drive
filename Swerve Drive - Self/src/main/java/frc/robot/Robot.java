@@ -13,6 +13,8 @@ import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.SparkMaxAlternateEncoder.Type;
 import com.revrobotics.RelativeEncoder;
 
+import com.ctre.phoenix.sensors.CANCoder;
+
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.motorcontrol.Spark;
@@ -35,10 +37,6 @@ import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.Rect;
 import org.opencv.core.CvType;
 import org.opencv.imgproc.Imgproc;
-
-import javax.management.Descriptor;
-import javax.print.attribute.standard.PrinterMessageFromOperator;
-
 import org.opencv.core.Core;
 import java.util.List;
 import java.util.LinkedList;
@@ -46,7 +44,8 @@ import java.text.BreakIterator;
 import java.util.ArrayList;
 import java.util.Random;
 
-import com.ctre.phoenix.sensors.CANCoder;
+import javax.management.Descriptor;
+import javax.print.attribute.standard.PrinterMessageFromOperator;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -138,15 +137,7 @@ public class Robot extends TimedRobot {
   public double[] delta_Motor = new double[] { 0.0, 0.0, 0.0, 0.0 };
 
   // Vision Variables
-  private Thread visionThread;
-  private final int imgWidth = 320; // 320
-  private final int imgHeight = 240; // 240
-  private Random rng = new Random(12345);
-  private final int maxObjectColors = 5;
-  private final boolean verbose = false;
-  private Rect biggestRed;
-  private Rect biggestYellow;
-  private Rect biggestGreen;
+  private static Vision cv;
 
   /* ------------------------------------------------------------------------- */
   /* ----------------------------- Swerve Methods ---------------------------- */
@@ -430,195 +421,11 @@ public class Robot extends TimedRobot {
   /* ------------------------------------------------------------------------- */
 
   /*
-   * Calculate center of rectangle
-   */
-  private Point rectCenter(Rect r) {
-    return new Point(r.tl().x + (r.width / 2.0), r.tl().y + (r.height / 2.0));
-  }
-
-  private void pushQueue(LinkedList<Rect> A, int maxSize, Rect r) {
-    if (A.size() == maxSize) {
-      A.remove();
-    }
-    A.add(r);
-  }
-
-  /*
    * Initializes Computer Vision
    */
   private void initVision() {
-
-    // TODO: put into constants file
-    // colors
-    Scalar redColor = new Scalar(0, 0, 255);
-    Scalar yellowColor = new Scalar(0, 255, 255);
-    Scalar greenColor = new Scalar(0, 255, 0);
-    Scalar blueColor = new Scalar(255, 0, 0);
-    Scalar pinkColor = new Scalar(255, 0, 255);
-
-    // BGR thresholding values
-    Scalar redLower = new Scalar(0, 0, 55);
-    Scalar redUpper = new Scalar(80, 35, 255);
-
-    Scalar yellowLower = new Scalar(0, 150, 175);
-    Scalar yellowUpper = new Scalar(140, 200, 230);
-
-    Scalar greenLower = new Scalar(0, 180, 0);
-    Scalar greenUpper = new Scalar(170, 255, 200);
-
-    Rect nothing = new Rect(0, 0, 0, 0);
-
-    // gaussian blur
-    Size gb = new Size(7, 7);
-
-    visionThread = new Thread(() -> {
-      // add USB camera, create server for SmartDashboard
-      UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
-      usbCamera.setResolution(imgWidth, imgHeight);
-
-      CvSink cvSink = CameraServer.getVideo(); // grab images from camera
-      CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
-
-      // Init variables
-      Mat sourceMat = new Mat();
-      Mat redMask = new Mat();
-      Mat yellowMask = new Mat();
-      Mat greenMask = new Mat();
-      Mat black = Mat.zeros(imgHeight, imgWidth, 16);
-
-      List<MatOfPoint> contoursRed = new ArrayList<MatOfPoint>();
-      Mat hierarchyRed = new Mat();
-      List<MatOfPoint> contoursYellow = new ArrayList<MatOfPoint>();
-      Mat hierarchyYellow = new Mat();
-      List<MatOfPoint> contoursGreen = new ArrayList<MatOfPoint>();
-      Mat hierarchyGreen = new Mat();
-
-      Rect br;
-      Rect tempBiggestYellow = new Rect(0, 0, 0, 0);
-      Rect tempBiggestRed = new Rect(0, 0, 0, 0);
-      Rect tempBiggestGreen = new Rect(0, 0, 0, 0);
-  
-      biggestYellow = new Rect(0, 0, 0, 0);
-      biggestGreen = new Rect(0, 0, 0, 0);
-      biggestRed = new Rect(0, 0, 0, 0);
-
-      while (true) { /// TODO: change condition later
-        long startTime = System.currentTimeMillis();
-
-        if (cvSink.grabFrame(sourceMat) != 0) {
-
-          // gaussian blur
-          Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
-
-          // red thresholding
-          Core.inRange(sourceMat, redLower, redUpper, redMask);
-          // yellow thresholding
-          Core.inRange(sourceMat, yellowLower, yellowUpper, yellowMask);
-          // green thresholding
-          Core.inRange(sourceMat, greenLower, greenUpper, greenMask);
-
-          // find bounding boxes
-          contoursRed = new ArrayList<MatOfPoint>();
-          contoursYellow = new ArrayList<MatOfPoint>();
-          contoursGreen = new ArrayList<MatOfPoint>();
-
-          Imgproc.findContours(redMask, contoursRed, hierarchyRed, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
-          Imgproc.findContours(yellowMask, contoursYellow, hierarchyYellow, Imgproc.RETR_EXTERNAL,
-              Imgproc.CHAIN_APPROX_SIMPLE);
-          Imgproc.findContours(greenMask, contoursGreen, hierarchyGreen, Imgproc.RETR_EXTERNAL,
-              Imgproc.CHAIN_APPROX_SIMPLE);
-
-          // reset processed frame
-          black.copyTo(sourceMat);
-          
-          // RED
-          if (contoursRed.size() == 0) {
-            tempBiggestRed = nothing;
-          } else {
-            tempBiggestRed = nothing;
-            for (int i = 0; i < Math.min(contoursRed.size(), maxObjectColors); i++) {
-              // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8,
-              // hierarchy, 0, new Point());
-              br = Imgproc.boundingRect(contoursRed.get(i));
-              if (br.area() > tempBiggestRed.area()) {
-                tempBiggestRed = br;
-              }
-              if (verbose) {
-                Imgproc.rectangle(sourceMat, br.tl(), br.br(), redColor, 1);
-              }
-            }
-          }
-          biggestRed = tempBiggestRed;
-
-          // YELLOW
-          if (contoursYellow.size() == 0) {
-            tempBiggestYellow = nothing;
-          } else {
-            tempBiggestYellow = nothing;
-            for (int i = 0; i < Math.min(contoursYellow.size(), maxObjectColors); i++) {
-              // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8,
-              // hierarchy, 0, new Point());
-              br = Imgproc.boundingRect(contoursYellow.get(i));
-              if (br.area() > tempBiggestYellow.area()) {
-                tempBiggestYellow = br;
-              }
-              if (verbose) {
-                Imgproc.rectangle(sourceMat, br.tl(), br.br(), yellowColor, 1);
-              }
-            }
-          }
-          biggestYellow = tempBiggestYellow;
-
-          // GREEN
-          if (contoursGreen.size() == 0) {
-            tempBiggestGreen = nothing;
-          } else {
-            tempBiggestGreen = nothing;
-            for (int i = 0; i < Math.min(contoursGreen.size(), maxObjectColors); i++) {
-              // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8,
-              // hierarchy, 0, new Point());
-              br = Imgproc.boundingRect(contoursGreen.get(i));
-              if (br.area() > tempBiggestGreen.area()) {
-                tempBiggestGreen = br;
-              }
-              if (verbose) {
-                Imgproc.rectangle(sourceMat, br.tl(), br.br(), greenColor, 1);
-              }
-            }
-          }
-          biggestGreen = tempBiggestGreen;
-
-          // write to processed image
-          sourceMat.setTo(yellowColor, yellowMask);
-          sourceMat.setTo(redColor, redMask);
-          sourceMat.setTo(greenColor, greenMask);
-
-          if (!verbose) {
-            Imgproc.rectangle(sourceMat, biggestRed.tl(), biggestRed.br(), redColor, 1);
-            Imgproc.rectangle(sourceMat, biggestYellow.tl(), biggestYellow.br(), yellowColor, 1);
-            Imgproc.rectangle(sourceMat, biggestGreen.tl(), biggestGreen.br(), greenColor, 1);
-            Imgproc.circle(sourceMat, rectCenter(biggestRed), 3, blueColor, -1);
-            Imgproc.circle(sourceMat, rectCenter(biggestYellow), 3, blueColor, -1);
-            Imgproc.circle(sourceMat, rectCenter(biggestGreen), 3, blueColor, -1);
-          }
-
-          // output results
-          outputStream.putFrame(sourceMat); // put processed image to smartdashboard
-          long endTime = System.currentTimeMillis();
-
-          // System.out.println("Total execution time: " + (endTime - startTime));
-
-          SmartDashboard.putString("Biggest Red Center", rectCenter(biggestRed).toString());
-          SmartDashboard.putString("Biggest Yellow Center", rectCenter(biggestYellow).toString());
-          SmartDashboard.putString("Biggest Green Center", rectCenter(biggestGreen).toString());
-        }
-
-      }
-
-    });
-
-    visionThread.setPriority(10); // highest priority
-    visionThread.start(); // start vision thread
+    cv = cv.getInstance();
+    cv.startVision();
   }
 
   /*
@@ -720,16 +527,16 @@ public class Robot extends TimedRobot {
     double setAngle = 0.0;
     double[] DESIRED = new double[] { 0, 0, 0, 0 };
 
-    Point center = rectCenter(biggestRed);
+    Point center = cv.rectCenter(cv.biggestRed);
 
     double x = center.x;
     // double y = center.y;
-    double centerx = (double) imgWidth / 2;
+    double centerx = (double) cv.imgWidth / 2;
 
     double new_kP = 0.005;
 
     // if nothing of (RED) color detected, keep spinning around until detected
-    if (biggestRed.area() <= 50) {
+    if (cv.biggestRed.area() <= 50) {
       DESIRED[0] = -45;
       DESIRED[1] = 45;
       DESIRED[2] = 135;
@@ -759,7 +566,7 @@ public class Robot extends TimedRobot {
     else {
 
       // if centered, and too far away, go closer
-      if ((biggestRed.area() <= 2000) && Math.abs(centerx - x) < 40) {
+      if ((cv.biggestRed.area() <= 2000) && Math.abs(centerx - x) < 40) {
         System.out.println("INSIDE TOO FAR ----------------------");
 
         DESIRED[0] = 0;
@@ -787,7 +594,7 @@ public class Robot extends TimedRobot {
 
       }
       // else, if centered and too close go back
-      else if ((biggestRed.area() > 2500) && Math.abs(centerx - x) < 40) {
+      else if ((cv.biggestRed.area() > 2500) && Math.abs(centerx - x) < 40) {
         System.out.println("INSIDE TOO CLOSE ----------------------");
 
         DESIRED[0] = 0;
