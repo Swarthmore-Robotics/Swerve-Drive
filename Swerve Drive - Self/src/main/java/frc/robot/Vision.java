@@ -25,19 +25,19 @@ public class Vision {
     // static singleton vision class instance
     private static Vision instance = null;
     // Public Variables
-    public static int imgWidth;
-    public static int imgHeight;
+    public int imgWidth;
+    public int imgHeight;
     public Rect biggestRed;
     public Rect biggestYellow;
     public Rect biggestGreen;
     public Rect[] biggestColors = {biggestRed, biggestYellow, biggestGreen};
     // Private Variables
     private Thread visionThread;
-    private RectAreaComparator rectSorter = new RectAreaComparator();
+    private RectAreaComparator rectSorter;
     private Size gb = new Size(7, 7); // gaussian blur
     // Private Final Variables
     private final Rect EMPTY_RECT = new Rect(0, 0, 0, 0);
-    private final Mat BLACK_IMAGE = Mat.zeros(imgHeight, imgWidth, 16);
+    private Mat BLACK_IMAGE;
     private final int MAX_OBJECT_DETECT = 5;
     private final boolean VERBOSE = false;
     // colors
@@ -62,9 +62,10 @@ public class Vision {
      * Constructors
      */
     private Vision(int imageWidth, int imageHeight){
-        imgWidth = imageWidth;
-        imgHeight = imageHeight;
-        init();
+        this.imgWidth = imageWidth;
+        this.imgHeight = imageHeight;
+        this.rectSorter = new RectAreaComparator();
+        this.init();
     }
     private Vision(){
         this(320, 240);
@@ -118,6 +119,7 @@ public class Vision {
         private Scalar upperLimit;
         private Scalar lowerLimit;
         private Mat mask;
+        private Mat tempImage;
         private List<MatOfPoint> contours;
         private Mat hierarchy;
         private Rect biggestRect;
@@ -133,42 +135,51 @@ public class Vision {
             mask = new Mat();
             hierarchy = new Mat();
             contours = new ArrayList<MatOfPoint>();
+            detectedRects = new ArrayList<Rect>();
+        }
+
+        private void reset(){
+            BLACK_IMAGE.copyTo(mask);
+            BLACK_IMAGE.copyTo(hierarchy);
+            contours.clear();
         }
 
         private Rect findRects(Mat image){
 
-            Core.inRange(image, lowerLimit, upperLimit, mask);
+            reset();
 
-            Imgproc.findContours(mask, contours, hierarchy, Imgproc.RETR_EXTERNAL,
+            Core.inRange(image, this.lowerLimit, this.upperLimit, this.mask);
+
+            Imgproc.findContours(this.mask, this.contours, this.hierarchy, Imgproc.RETR_EXTERNAL,
                             Imgproc.CHAIN_APPROX_SIMPLE);
 
-            BLACK_IMAGE.copyTo(image);
+            // BLACK_IMAGE.copyTo(tempImage);
 
-            if (contours.size() == 0) {
+            if (this.contours.size() == 0) {
                 temp = EMPTY_RECT;
             } else {
-                temp = EMPTY_RECT;
-                detectedRects = new ArrayList<Rect>();
-                for (int i = 0; i < Math.min(contours.size(), MAX_OBJECT_DETECT); i++) {
+                this.temp = EMPTY_RECT;
+                this.detectedRects.clear();
+                for (int i = 0; i < Math.min(this.contours.size(), MAX_OBJECT_DETECT); i++) {
                     // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8,
                     // hierarchy, 0, new Point());
-                    br = Imgproc.boundingRect(contours.get(i));
-                    detectedRects.add(br);
+                    br = Imgproc.boundingRect(this.contours.get(i));
+                    this.detectedRects.add(br);
                     if (br.area() > temp.area()) {
-                        temp = br;
+                        this.temp = br;
                     }
                     if (VERBOSE) {
                         Imgproc.rectangle(image, br.tl(), br.br(), color, 1);
                     }
                 }
+
+                // sort detected rectangles from biggest to smallest area
+                Collections.sort(this.detectedRects, rectSorter);
+                Collections.reverse(this.detectedRects);
             }
-            biggestRect = temp;
+            this.biggestRect = this.temp;
 
-            // sort detected rectangles from biggest to smallest area
-            Collections.sort(detectedRects, rectSorter);
-            Collections.reverse(detectedRects);
-
-            return biggestRect;
+            return this.biggestRect;
         }
     }
 
@@ -177,6 +188,16 @@ public class Vision {
      */
     public Point rectCenter(Rect r) {
         return new Point(r.tl().x + (r.width / 2.0), r.tl().y + (r.height / 2.0));
+    }
+
+    /*
+     * Convert Point to array [x, y]
+     * 
+     */
+    public double[] point2array(Point p){
+        double[] arr = {p.x, p.y};
+
+        return arr;
     }
 
     /*
@@ -196,6 +217,10 @@ public class Vision {
             // Init variables
             Mat sourceMat = new Mat();
             Mat outputMat = new Mat();
+            BLACK_IMAGE = Mat.zeros(imgHeight, imgWidth, 16);
+            BLACK_IMAGE.copyTo(sourceMat);
+            BLACK_IMAGE.copyTo(outputMat);
+
             ColorDetector redDetector = new ColorDetector(RED_COLOR, redLower, redUpper);
             ColorDetector yellowDetector = new ColorDetector(YELLOW_COLOR, yellowLower, yellowUpper);
             ColorDetector greenDetector = new ColorDetector(GREEN_COLOR, greenLower, greenUpper);
@@ -219,19 +244,20 @@ public class Vision {
 
                     // color detection
                     for(int i = 0; i < numDetectors; i++){
+                    // for(int i = 0; i < 1; i++){
                         ColorDetector cd = detectors.get(i);
                         biggestColors[i] = cd.findRects(sourceMat);
+                        // System.out.println("found red");
                         outputMat.setTo(cd.color, cd.mask);
+                        if (!VERBOSE) {
+                            Imgproc.rectangle(outputMat, biggestColors[i].tl(), biggestColors[i].br(), cd.color, 1);
+                            Imgproc.circle(outputMat, rectCenter(biggestColors[i]), 3, BLUE_COLOR, -1);
+                        }
                     }
 
-                    if (!VERBOSE) {
-                        Imgproc.rectangle(outputMat, biggestRed.tl(), biggestRed.br(), redDetector.color, 1);
-                        Imgproc.rectangle(outputMat, biggestYellow.tl(), biggestYellow.br(), yellowDetector.color, 1);
-                        Imgproc.rectangle(outputMat, biggestGreen.tl(), biggestGreen.br(), greenDetector.color, 1);
-                        Imgproc.circle(outputMat, rectCenter(biggestRed), 3, BLUE_COLOR, -1);
-                        Imgproc.circle(outputMat, rectCenter(biggestYellow), 3, BLUE_COLOR, -1);
-                        Imgproc.circle(outputMat, rectCenter(biggestGreen), 3, BLUE_COLOR, -1);
-                    }
+                    biggestRed = biggestColors[0];
+                    biggestYellow = biggestColors[1];
+                    biggestGreen = biggestColors[2];
 
                     // output results
                     outputStream.putFrame(outputMat); // put processed image to smartdashboard
