@@ -338,6 +338,28 @@ public class Robot extends TimedRobot {
   }
 
   /*
+   * Command motors to a given wheel angle or translation speed via API call to setReference
+   */
+  private void setWheelState(List<SparkMaxPIDController> pidControllers, double[] desired_motion, boolean RM_flag, double[] setpoint) {
+    
+    if (RM_flag) {
+      
+      for (int i = WHEEL_FL; i < WHEEL_BR; i ++) {
+        RM_PIDControllers.get(i).setReference(desired_motion[i], CANSparkMax.ControlType.kSmartMotion);
+      }
+
+    }
+    else {
+      
+      for (int i = WHEEL_FL; i < WHEEL_BR; i ++) {
+        TM_PIDControllers.get(i).setReference(setpoint[i] * desired_motion[i], CANSparkMax.ControlType.kVelocity);
+      }
+
+    }
+
+  }
+
+  /*
    * Sets the desired wheel angles and direction of translation for each wheel
    * module, per case
    */
@@ -542,23 +564,27 @@ public class Robot extends TimedRobot {
       DESIRED[2] = 135;
       DESIRED[3] = 225;
 
+      double setpoint = 0.5 * (Trans_maxRPM / 6);
+      double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
 
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+      setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+      // RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      double setpoint = 0.5 * (Trans_maxRPM / 6);
+      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
-      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
-          CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
+      //     CANSparkMax.ControlType.kVelocity);
 
     }
 
@@ -574,23 +600,27 @@ public class Robot extends TimedRobot {
         DESIRED[2] = 0;
         DESIRED[3] = 0;
 
+        double tempSetPoint = 0.25 * (Trans_maxRPM / 6);
+        double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
+
         set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
-        RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+        // RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-        double tempSetPoint = 0.25 * (Trans_maxRPM / 6);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
-        TM_PIDControllers.get(WHEEL_FL).setReference(tempSetPoint * desired_translation[WHEEL_FL],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_FR).setReference(tempSetPoint * desired_translation[WHEEL_FR],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_BR).setReference(tempSetPoint * desired_translation[WHEEL_BR],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_BL).setReference(tempSetPoint * desired_translation[WHEEL_BL],
-            CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_FL).setReference(tempSetPoint * desired_translation[WHEEL_FL],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_FR).setReference(tempSetPoint * desired_translation[WHEEL_FR],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_BR).setReference(tempSetPoint * desired_translation[WHEEL_BR],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_BL).setReference(tempSetPoint * desired_translation[WHEEL_BL],
+        //     CANSparkMax.ControlType.kVelocity);
 
       }
       // else, if centered and too close go back
@@ -602,23 +632,27 @@ public class Robot extends TimedRobot {
         DESIRED[2] = 0;
         DESIRED[3] = 0;
 
+        double tempSetPoint = -0.25 * (Trans_maxRPM / 6);
+        double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
+
         set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
-        RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
-        double tempSetPoint = -0.25 * (Trans_maxRPM / 6);
+        // RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-        TM_PIDControllers.get(WHEEL_FL).setReference(tempSetPoint * desired_translation[WHEEL_FL],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_FR).setReference(tempSetPoint * desired_translation[WHEEL_FR],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_BR).setReference(tempSetPoint * desired_translation[WHEEL_BR],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_BL).setReference(tempSetPoint * desired_translation[WHEEL_BL],
-            CANSparkMax.ControlType.kVelocity);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+        // TM_PIDControllers.get(WHEEL_FL).setReference(tempSetPoint * desired_translation[WHEEL_FL],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_FR).setReference(tempSetPoint * desired_translation[WHEEL_FR],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_BR).setReference(tempSetPoint * desired_translation[WHEEL_BR],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_BL).setReference(tempSetPoint * desired_translation[WHEEL_BL],
+        //     CANSparkMax.ControlType.kVelocity);
       } else if (Math.abs(centerx - x) >= 40) {
         System.out.println("INSIDE NOT CENTERED ----------------------");
         // Centering a red block if it enters into frame
@@ -627,23 +661,27 @@ public class Robot extends TimedRobot {
         DESIRED[2] = 135;
         DESIRED[3] = 225;
 
+        double setpoint = new_kP * (centerx - x) * ((Trans_maxRPM / 6) / MAX_rad_s);
+        double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
         set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
 
-        RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-        RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
-        double setpoint = new_kP * (centerx - x) * ((Trans_maxRPM / 6) / MAX_rad_s);
+        // RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+        // RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-        TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
-            CANSparkMax.ControlType.kVelocity);
-        TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
-            CANSparkMax.ControlType.kVelocity);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+        // TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
+        //     CANSparkMax.ControlType.kVelocity);
+        // TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
+        //     CANSparkMax.ControlType.kVelocity);
       } else {
         System.out.println("IDEAL SPOT ACHIEVED ----------------------");
 
@@ -717,26 +755,31 @@ public class Robot extends TimedRobot {
       // in case 1, set every wheel to same desired setAngle
       double[] DESIRED = new double[] { setAngle, setAngle, setAngle, setAngle };
 
+      // define setpoint for translation motors to be joystick input * arbitrary 1/6th of max wheel RPM
+      double setpoint = Vr * (Trans_maxRPM / 6);
+      double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
       // call set_desired to populate empty arrays with correct values based on the
       // current case
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+      setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
-      double setpoint = Vr * (Trans_maxRPM / 6);
-      printDB("setpoint for case 1", setpoint);
+      // RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
-          CANSparkMax.ControlType.kVelocity);
+      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
+      // TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
+      //     CANSparkMax.ControlType.kVelocity);
     }
 
     // General Case, CASE 2
@@ -749,58 +792,61 @@ public class Robot extends TimedRobot {
       double v2x = -1 * Vy + (-1 * (omega * y / r));
       double v3x = -1 * Vy + (omega * y / r);
       double v4x = -1 * Vy + (omega * y / r);
-      SmartDashboard.putNumber("v1x", v1x);
-      SmartDashboard.putNumber("v2x", v2x);
-      SmartDashboard.putNumber("v3x", v3x);
-      SmartDashboard.putNumber("v4x", v4x);
+      printDB("v1x", v1x);
+      printDB("v2x", v2x);
+      printDB("v3x", v3x);
+      printDB("v4x", v4x);
 
       double v1y = Vx + (-1 * (omega * x / r));
       double v2y = Vx + (omega * x / r);
       double v3y = Vx + (omega * x / r);
       double v4y = Vx + (-1 * (omega * x / r));
-      SmartDashboard.putNumber("v1y", v1y);
-      SmartDashboard.putNumber("v2y", v2y);
-      SmartDashboard.putNumber("v3y", v3y);
-      SmartDashboard.putNumber("v4y", v4y);
+      printDB("v1y", v1y);
+      printDB("v2y", v2y);
+      printDB("v3y", v3y);
+      printDB("v4y", v4y);
 
       double q1 = mag(v1x, v1y);
       double q2 = mag(v2x, v2y);
       double q3 = mag(v3x, v3y);
       double q4 = mag(v4x, v4y);
 
-      SmartDashboard.putNumber("q1", q1);
-      SmartDashboard.putNumber("q2", q2);
-      SmartDashboard.putNumber("q3", q3);
-      SmartDashboard.putNumber("q4", q4);
+      printDB("q1", q1);
+      printDB("q2", q2);
+      printDB("q3", q3);
+      printDB("q4", q4);
 
       double Omega_wheel1 = -1 * (Math.atan2(v1x, v1y) * 180) / Math.PI;
       double Omega_wheel2 = -1 * (Math.atan2(v2x, v2y) * 180) / Math.PI;
       double Omega_wheel3 = -1 * (Math.atan2(v3x, v3y) * 180) / Math.PI;
       double Omega_wheel4 = -1 * (Math.atan2(v4x, v4y) * 180) / Math.PI;
-      SmartDashboard.putNumber("Omega_wheel1", Omega_wheel1);
-      SmartDashboard.putNumber("Omega_wheel2", Omega_wheel2);
-      SmartDashboard.putNumber("Omega_wheel3", Omega_wheel3);
-      SmartDashboard.putNumber("Omega_wheel4", Omega_wheel4);
+      printDB("Omega_wheel1", Omega_wheel1);
+      printDB("Omega_wheel2", Omega_wheel2);
+      printDB("Omega_wheel3", Omega_wheel3);
+      printDB("Omega_wheel4", Omega_wheel4);
 
       double[] DESIRED = new double[] { Omega_wheel1, Omega_wheel2, Omega_wheel3, Omega_wheel4 };
 
+      double[] setpointArr = new double[] { q1 * Trans_maxRPM / 6, q2 * Trans_maxRPM / 6, q3 * Trans_maxRPM / 6,
+        q4 * Trans_maxRPM / 6 };
+
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      double[] setpoint = new double[] { q1 * Trans_maxRPM / 6, q2 * Trans_maxRPM / 6, q3 * Trans_maxRPM / 6,
-          q4 * Trans_maxRPM / 6 };
+      setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+      // RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
 
-      TM_PIDControllers.get(WHEEL_FL).setReference(desired_translation[WHEEL_FL] * setpoint[WHEEL_FL],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(desired_translation[WHEEL_FR] * setpoint[WHEEL_FR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(desired_translation[WHEEL_BR] * setpoint[WHEEL_BR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(desired_translation[WHEEL_BL] * setpoint[WHEEL_BL],
-          CANSparkMax.ControlType.kVelocity);
+      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+      // TM_PIDControllers.get(WHEEL_FL).setReference(desired_translation[WHEEL_FL] * setpoint[WHEEL_FL],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_FR).setReference(desired_translation[WHEEL_FR] * setpoint[WHEEL_FR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BR).setReference(desired_translation[WHEEL_BR] * setpoint[WHEEL_BR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BL).setReference(desired_translation[WHEEL_BL] * setpoint[WHEEL_BL],
+      //     CANSparkMax.ControlType.kVelocity);
     }
 
     // Rotate in place, CASE 3
@@ -810,21 +856,27 @@ public class Robot extends TimedRobot {
       // in case 3, set each wheel angle to some 90 degree offset of each other
       double[] DESIRED = new double[] { -45, 45, 135, 225 };
 
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
-      RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
-      RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
-
       double setpoint = omega * (Trans_maxRPM / 6);
-      TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
-          CANSparkMax.ControlType.kVelocity);
-      TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
-          CANSparkMax.ControlType.kVelocity);
+      double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
+      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+
+      setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+      // RM_PIDControllers.get(WHEEL_FL).setReference(desired_rel1[WHEEL_FL], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_FR).setReference(desired_rel1[WHEEL_FR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BR).setReference(desired_rel1[WHEEL_BR], CANSparkMax.ControlType.kSmartMotion);
+      // RM_PIDControllers.get(WHEEL_BL).setReference(desired_rel1[WHEEL_BL], CANSparkMax.ControlType.kSmartMotion);
+
+      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
+      // TM_PIDControllers.get(WHEEL_FL).setReference(setpoint * desired_translation[WHEEL_FL],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_FR).setReference(setpoint * desired_translation[WHEEL_FR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BR).setReference(setpoint * desired_translation[WHEEL_BR],
+      //     CANSparkMax.ControlType.kVelocity);
+      // TM_PIDControllers.get(WHEEL_BL).setReference(setpoint * desired_translation[WHEEL_BL],
+      //     CANSparkMax.ControlType.kVelocity);
     }
 
     // No input, CASE 4

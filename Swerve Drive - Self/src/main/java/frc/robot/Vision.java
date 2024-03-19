@@ -25,7 +25,7 @@ public class Vision {
     // static singleton vision class instance
     private static Vision instance = null;
     // Public Variables
-    public static int imgWidth;
+    public int imgWidth;
     public static int imgHeight;
     public Rect biggestRed;
     public Rect biggestYellow;
