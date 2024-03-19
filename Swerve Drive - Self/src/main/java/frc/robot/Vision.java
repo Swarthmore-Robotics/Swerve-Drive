@@ -24,69 +24,53 @@ public class Vision {
 
     // static singleton vision class instance
     private static Vision instance = null;
+    private static Constants C = new Constants();
     // Public Variables
     public int imgWidth;
     public int imgHeight;
     public Rect biggestRed;
     public Rect biggestYellow;
     public Rect biggestGreen;
-    public Rect[] biggestColors = {biggestRed, biggestYellow, biggestGreen};
+    public Rect[] biggestColors = { biggestRed, biggestYellow, biggestGreen };
     // Private Variables
     private Thread visionThread;
     private RectAreaComparator rectSorter;
-    private Size gb = new Size(7, 7); // gaussian blur
+    // private Size gb = new Size(7, 7); // gaussian blur
     // Private Final Variables
-    private final Rect EMPTY_RECT = new Rect(0, 0, 0, 0);
+    // private final Rect EMPTY_RECT = new Rect(0, 0, 0, 0);
     private Mat BLACK_IMAGE;
-    private final int MAX_OBJECT_DETECT = 5;
-    private final boolean VERBOSE = false;
-    // colors
-    private static final Scalar RED_COLOR = new Scalar(0, 0, 255);
-    private static final Scalar YELLOW_COLOR = new Scalar(0, 255, 255);
-    private static final Scalar GREEN_COLOR = new Scalar(0, 255, 0);
-    private static final Scalar BLUE_COLOR = new Scalar(255, 0, 0);
-    private static final Scalar PINK_COLOR = new Scalar(255, 0, 255);
-
-    // BGR thresholding values
-    // TODO: put into constants file
-    private Scalar redLower = new Scalar(0, 0, 55);
-    private Scalar redUpper = new Scalar(80, 35, 255);
-
-    private Scalar yellowLower = new Scalar(0, 150, 175);
-    private Scalar yellowUpper = new Scalar(140, 200, 230);
-
-    private Scalar greenLower = new Scalar(0, 180, 0);
-    private Scalar greenUpper = new Scalar(170, 255, 200);
 
     /*
      * Constructors
      */
-    private Vision(int imageWidth, int imageHeight){
+    private Vision(int imageWidth, int imageHeight) {
         this.imgWidth = imageWidth;
         this.imgHeight = imageHeight;
         this.rectSorter = new RectAreaComparator();
         this.init();
     }
-    private Vision(){
+
+    private Vision() {
         this(320, 240);
-    } 
+    }
 
     /*
      * Accessor to Vision
      * - uses singleton design pattern
      */
-    public static Vision getInstance(){
-        if(instance == null){
+    public static Vision getInstance() {
+        if (instance == null) {
             instance = new Vision();
         }
-        
+
         return instance;
     }
-    public static Vision getInstance(int a, int b){
-        if(instance == null){
+
+    public static Vision getInstance(int a, int b) {
+        if (instance == null) {
             instance = new Vision(a, b);
         }
-        
+
         return instance;
     }
 
@@ -94,13 +78,13 @@ public class Vision {
      * Rect Comparator Class
      * - compares Rect from smallest to largest area
      */
-    class RectAreaComparator implements Comparator<Rect>{
+    class RectAreaComparator implements Comparator<Rect> {
 
         @Override
         public int compare(Rect r1, Rect r2) {
             return (int) (r1.area() - r2.area());
         }
-        
+
     }
 
     /*
@@ -114,7 +98,7 @@ public class Vision {
      * 4. updates to list of detected rectangles & biggest rectangle color
      */
 
-    class ColorDetector{
+    class ColorDetector {
         private Scalar color;
         private Scalar upperLimit;
         private Scalar lowerLimit;
@@ -127,7 +111,7 @@ public class Vision {
         private Rect br;
         private Rect temp;
 
-        public ColorDetector(Scalar c, Scalar ll, Scalar ul){
+        public ColorDetector(Scalar c, Scalar ll, Scalar ul) {
             color = c;
             upperLimit = ul;
             lowerLimit = ll;
@@ -138,29 +122,29 @@ public class Vision {
             detectedRects = new ArrayList<Rect>();
         }
 
-        private void reset(){
+        private void reset() {
             BLACK_IMAGE.copyTo(mask);
             BLACK_IMAGE.copyTo(hierarchy);
             contours.clear();
         }
 
-        private Rect findRects(Mat image){
+        private Rect findRects(Mat image) {
 
             reset();
 
             Core.inRange(image, this.lowerLimit, this.upperLimit, this.mask);
 
             Imgproc.findContours(this.mask, this.contours, this.hierarchy, Imgproc.RETR_EXTERNAL,
-                            Imgproc.CHAIN_APPROX_SIMPLE);
+                    Imgproc.CHAIN_APPROX_SIMPLE);
 
             // BLACK_IMAGE.copyTo(tempImage);
 
             if (this.contours.size() == 0) {
-                temp = EMPTY_RECT;
+                temp = C.EMPTY_RECT;
             } else {
-                this.temp = EMPTY_RECT;
+                this.temp = C.EMPTY_RECT;
                 this.detectedRects.clear();
-                for (int i = 0; i < Math.min(this.contours.size(), MAX_OBJECT_DETECT); i++) {
+                for (int i = 0; i < Math.min(this.contours.size(), C.MAX_OBJECT_DETECT); i++) {
                     // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8,
                     // hierarchy, 0, new Point());
                     br = Imgproc.boundingRect(this.contours.get(i));
@@ -168,7 +152,7 @@ public class Vision {
                     if (br.area() > temp.area()) {
                         this.temp = br;
                     }
-                    if (VERBOSE) {
+                    if (C.VERBOSE) {
                         Imgproc.rectangle(image, br.tl(), br.br(), color, 1);
                     }
                 }
@@ -194,8 +178,8 @@ public class Vision {
      * Convert Point to array [x, y]
      * 
      */
-    public double[] point2array(Point p){
-        double[] arr = {p.x, p.y};
+    public double[] point2array(Point p) {
+        double[] arr = { p.x, p.y };
 
         return arr;
     }
@@ -205,32 +189,32 @@ public class Vision {
      */
     private void init() {
 
+        // add USB camera, create server for SmartDashboard
+        UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
+        usbCamera.setResolution(imgWidth, imgHeight);
+
+        CvSink cvSink = CameraServer.getVideo(); // grab images from camera
+        CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
+
+        // Init variables
+        Mat sourceMat = new Mat();
+        Mat outputMat = new Mat();
+        BLACK_IMAGE = Mat.zeros(imgHeight, imgWidth, 16);
+        BLACK_IMAGE.copyTo(sourceMat);
+        BLACK_IMAGE.copyTo(outputMat);
+
+        ColorDetector redDetector = new ColorDetector(C.RED_COLOR, C.redLower, C.redUpper);
+        ColorDetector yellowDetector = new ColorDetector(C.YELLOW_COLOR, C.yellowLower, C.yellowUpper);
+        ColorDetector greenDetector = new ColorDetector(C.GREEN_COLOR, C.greenLower, C.greenUpper);
+
+        List<ColorDetector> detectors = new ArrayList<ColorDetector>();
+        detectors.add(redDetector);
+        detectors.add(yellowDetector);
+        detectors.add(greenDetector);
+
+        int numDetectors = detectors.size();
+        
         visionThread = new Thread(() -> {
-            // add USB camera, create server for SmartDashboard
-            UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
-            usbCamera.setResolution(imgWidth, imgHeight);
-
-            CvSink cvSink = CameraServer.getVideo(); // grab images from camera
-            CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
-            
-
-            // Init variables
-            Mat sourceMat = new Mat();
-            Mat outputMat = new Mat();
-            BLACK_IMAGE = Mat.zeros(imgHeight, imgWidth, 16);
-            BLACK_IMAGE.copyTo(sourceMat);
-            BLACK_IMAGE.copyTo(outputMat);
-
-            ColorDetector redDetector = new ColorDetector(RED_COLOR, redLower, redUpper);
-            ColorDetector yellowDetector = new ColorDetector(YELLOW_COLOR, yellowLower, yellowUpper);
-            ColorDetector greenDetector = new ColorDetector(GREEN_COLOR, greenLower, greenUpper);
-
-            List<ColorDetector> detectors = new ArrayList<ColorDetector>();
-            detectors.add(redDetector);
-            detectors.add(yellowDetector);
-            detectors.add(greenDetector);
-
-            int numDetectors = detectors.size();
 
             while (true) { /// TODO: change condition later
                 long startTime = System.currentTimeMillis();
@@ -238,20 +222,20 @@ public class Vision {
                 if (cvSink.grabFrame(sourceMat) != 0) {
 
                     // gaussian blur
-                    Imgproc.GaussianBlur(sourceMat, sourceMat, gb, 0, 0);
+                    Imgproc.GaussianBlur(sourceMat, sourceMat, C.gb, 0, 0);
 
                     BLACK_IMAGE.copyTo(outputMat);
 
                     // color detection
-                    for(int i = 0; i < numDetectors; i++){
-                    // for(int i = 0; i < 1; i++){
+                    for (int i = 0; i < numDetectors; i++) {
+                        // for(int i = 0; i < 1; i++){
                         ColorDetector cd = detectors.get(i);
                         biggestColors[i] = cd.findRects(sourceMat);
                         // System.out.println("found red");
                         outputMat.setTo(cd.color, cd.mask);
-                        if (!VERBOSE) {
+                        if (!C.VERBOSE) {
                             Imgproc.rectangle(outputMat, biggestColors[i].tl(), biggestColors[i].br(), cd.color, 1);
-                            Imgproc.circle(outputMat, rectCenter(biggestColors[i]), 3, BLUE_COLOR, -1);
+                            Imgproc.circle(outputMat, rectCenter(biggestColors[i]), 3, C.BLUE_COLOR, -1);
                         }
                     }
 
