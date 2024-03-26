@@ -57,6 +57,7 @@ public class Constants {
     public final Scalar GREEN_COLOR = new Scalar(0, 255, 0);
     public final Scalar BLUE_COLOR = new Scalar(255, 0, 0);
     public final Scalar PINK_COLOR = new Scalar(255, 0, 255);
+    public final Scalar WHITE_COLOR = new Scalar(255, 255, 255);
 
     // BGR thresholding values
     public Scalar redLower = new Scalar(0, 0, 55);

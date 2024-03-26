@@ -199,9 +199,15 @@ public class Vision {
         // Init variables
         Mat sourceMat = new Mat();
         Mat outputMat = new Mat();
+        Mat tempMat = new Mat();
         BLACK_IMAGE = Mat.zeros(imgHeight, imgWidth, 16);
         BLACK_IMAGE.copyTo(sourceMat);
         BLACK_IMAGE.copyTo(outputMat);
+        BLACK_IMAGE.copyTo(tempMat);
+        Point centerTop = new Point(160,0);
+        Point centerBottom = new Point(160,240);
+        Point centerTopLeft = new Point(160 - C.centerThresh, 0);
+        Point centerBottomRight = new Point(160 + C.centerThresh, 240);
 
         ColorDetector redDetector = new ColorDetector(C.RED_COLOR, C.redLower, C.redUpper);
         ColorDetector yellowDetector = new ColorDetector(C.YELLOW_COLOR, C.yellowLower, C.yellowUpper);
@@ -221,6 +227,8 @@ public class Vision {
 
                 if (cvSink.grabFrame(sourceMat) != 0) {
 
+                    sourceMat.copyTo(tempMat);
+
                     // gaussian blur
                     Imgproc.GaussianBlur(sourceMat, sourceMat, C.gb, 0, 0);
 
@@ -236,6 +244,8 @@ public class Vision {
                         if (!C.VERBOSE) {
                             Imgproc.rectangle(outputMat, biggestColors[i].tl(), biggestColors[i].br(), cd.color, 1);
                             Imgproc.circle(outputMat, rectCenter(biggestColors[i]), 3, C.BLUE_COLOR, -1);
+                            Imgproc.rectangle(tempMat, biggestColors[i].tl(), biggestColors[i].br(), cd.color, 1);
+                            Imgproc.circle(tempMat, rectCenter(biggestColors[i]), 3, C.BLUE_COLOR, -1);
                         }
                     }
 
@@ -243,8 +253,11 @@ public class Vision {
                     biggestYellow = biggestColors[1];
                     biggestGreen = biggestColors[2];
 
+                    Imgproc.line(tempMat, centerTop, centerBottom, C.WHITE_COLOR, 1);
+                    Imgproc.rectangle(tempMat, centerTopLeft, centerBottomRight, C.WHITE_COLOR, 1);
+
                     // output results
-                    outputStream.putFrame(outputMat); // put processed image to smartdashboard
+                    outputStream.putFrame(tempMat); // put processed image to smartdashboard
                     long endTime = System.currentTimeMillis();
 
                     // System.out.println("Total execution time: " + (endTime - startTime));
