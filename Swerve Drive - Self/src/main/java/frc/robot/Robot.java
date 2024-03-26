@@ -312,14 +312,14 @@ public class Robot extends TimedRobot {
     
     if (RM_flag) {
       
-      for (int i = WHEEL_FL; i < WHEEL_BR; i ++) {
+      for (int i = 0; i <= 3; i ++) {
         RM_PIDControllers.get(i).setReference(desired_motion[i], CANSparkMax.ControlType.kSmartMotion);
       }
 
     }
     else {
       
-      for (int i = WHEEL_FL; i < WHEEL_BR; i ++) {
+      for (int i = 0; i <= 3; i ++) {
         TM_PIDControllers.get(i).setReference(setpoint[i] * desired_motion[i], CANSparkMax.ControlType.kVelocity);
       }
 
