@@ -391,6 +391,32 @@ public class Robot extends TimedRobot {
 
   }
 
+  private double[] set_vectors(double Vx, double Vy, double omega, double x, double y, double r) {
+    
+    double v1x = -1 * Vy + (-1 * (omega * y / r));
+    double v2x = -1 * Vy + (-1 * (omega * y / r));
+    double v3x = -1 * Vy + (omega * y / r);
+    double v4x = -1 * Vy + (omega * y / r);
+
+    double v1y = Vx + (-1 * (omega * x / r));
+    double v2y = Vx + (omega * x / r);
+    double v3y = Vx + (omega * x / r);
+    double v4y = Vx + (-1 * (omega * x / r));
+
+    double q1 = mag(v1x, v1y) * C.Trans_maxRPM / 6;
+    double q2 = mag(v2x, v2y) * C.Trans_maxRPM / 6;
+    double q3 = mag(v3x, v3y) * C.Trans_maxRPM / 6;
+    double q4 = mag(v4x, v4y) * C.Trans_maxRPM / 6;
+
+    double Omega_wheel1 = -1 * (Math.atan2(v1x, v1y) * 180) / Math.PI;
+    double Omega_wheel2 = -1 * (Math.atan2(v2x, v2y) * 180) / Math.PI;
+    double Omega_wheel3 = -1 * (Math.atan2(v3x, v3y) * 180) / Math.PI;
+    double Omega_wheel4 = -1 * (Math.atan2(v4x, v4y) * 180) / Math.PI;
+
+    double[] state = new double[]{ Omega_wheel1, Omega_wheel2, Omega_wheel3, Omega_wheel4, q1, q2, q3, q4 };
+
+    return state;
+  }
   /*
    * Sets all motor speeds to 0
    */
@@ -666,97 +692,56 @@ public class Robot extends TimedRobot {
 
     // No rotation, CASE 1
     if (omega == 0 & (Vx != 0 | Vy != 0)) {
-      printDB("Case", 1);
 
-      // define robot angle to be direction of joystick vectors, Vx and Vy
+      // define wheel angle based on direction of joystick vectors, Vx and Vy
       double setAngle = ((Math.atan2(Vy, Vx) * 180) / Math.PI);
 
-      // in case 1, set every wheel to same desired setAngle
+      // in case 1, set every wheel to the same desired setAngle
       double[] DESIRED = new double[] { setAngle, setAngle, setAngle, setAngle };
 
-      // define setpoint for translation motors to be joystick input * arbitrary 1/6th of max wheel RPM
+      // define wheel speeds to be magnitude of joystick input * arbitrary 1/6th of max wheel RPM
       double setpoint = Vr * (C.Trans_maxRPM / 6);
       double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
-      // call set_desired to populate empty arrays with correct values based on the
-      // current case
+      // apply pre-defined wheel offset values to get correct values
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
+      // command wheel modules to the desired wheel angles and speeds
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
     }
 
     // General Case, CASE 2
     else if (omega != 0 & (Vx != 0 | Vy != 0)) {
-      SmartDashboard.putNumber("Case", 2);
 
-      // x component of each wheel is made up of x component of left joystick and x
-      // component of right joystick
-      double v1x = -1 * Vy + (-1 * (omega * y / r));
-      double v2x = -1 * Vy + (-1 * (omega * y / r));
-      double v3x = -1 * Vy + (omega * y / r);
-      double v4x = -1 * Vy + (omega * y / r);
-      // printDB("v1x", v1x);
-      // printDB("v2x", v2x);
-      // printDB("v3x", v3x);
-      // printDB("v4x", v4x);
+      // calculate the vector sum of joystick inputs to define each respective wheel module's 
+      // linear and angular velocities
+      double[] state = set_vectors(Vx, Vy, omega, x, y, r);
 
-      double v1y = Vx + (-1 * (omega * x / r));
-      double v2y = Vx + (omega * x / r);
-      double v3y = Vx + (omega * x / r);
-      double v4y = Vx + (-1 * (omega * x / r));
-      // printDB("v1y", v1y);
-      // printDB("v2y", v2y);
-      // printDB("v3y", v3y);
-      // printDB("v4y", v4y);
-
-      double q1 = mag(v1x, v1y);
-      double q2 = mag(v2x, v2y);
-      double q3 = mag(v3x, v3y);
-      double q4 = mag(v4x, v4y);
-      // printDB("q1", q1);
-      // printDB("q2", q2);
-      // printDB("q3", q3);
-      // printDB("q4", q4);
-
-      double Omega_wheel1 = -1 * (Math.atan2(v1x, v1y) * 180) / Math.PI;
-      double Omega_wheel2 = -1 * (Math.atan2(v2x, v2y) * 180) / Math.PI;
-      double Omega_wheel3 = -1 * (Math.atan2(v3x, v3y) * 180) / Math.PI;
-      double Omega_wheel4 = -1 * (Math.atan2(v4x, v4y) * 180) / Math.PI;
-      // printDB("Omega_wheel1", Omega_wheel1);
-      // printDB("Omega_wheel2", Omega_wheel2);
-      // printDB("Omega_wheel3", Omega_wheel3);
-      // printDB("Omega_wheel4", Omega_wheel4);
-
-      double[] DESIRED = new double[] { Omega_wheel1, Omega_wheel2, Omega_wheel3, Omega_wheel4 };
-
-      double[] setpointArr = new double[] { q1 * C.Trans_maxRPM / 6, q2 * C.Trans_maxRPM / 6, q3 * C.Trans_maxRPM / 6,
-        q4 * C.Trans_maxRPM / 6 };
+      // in case 2, each wheel is set to a distinct angle and speed 
+      double[] DESIRED = new double[]{ state[0], state[1], state[2], state[3] };
+      double[] setpointArr = new double[] { state[4], state[5], state[6], state[7] };
 
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
 
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
     }
 
     // Rotate in place, CASE 3
     else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
-      printDB("Case", 3);
 
       // in case 3, set each wheel angle to some 90 degree offset of each other
       double[] DESIRED = new double[] { -45, 45, 135, 225 };
 
-      double setpoint = omega * (C.Trans_maxRPM / 6);
+      double setpoint = omega * r * (C.Trans_maxRPM / 6);
       double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
 
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
     }
