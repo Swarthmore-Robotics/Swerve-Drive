@@ -7,45 +7,20 @@ package frc.robot;
 // CAN + SPARKMAX
 import com.revrobotics.CANSparkMax;
 import com.revrobotics.SparkMaxPIDController;
-import com.revrobotics.CANSparkMax.ControlType;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
-import com.revrobotics.SparkMaxAlternateEncoder.Type;
 import com.revrobotics.RelativeEncoder;
 
 import com.ctre.phoenix.sensors.CANCoder;
 
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
-import edu.wpi.first.wpilibj.motorcontrol.Spark;
-import edu.wpi.first.wpilibj.Encoder;
-import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
-// Vision
-import edu.wpi.first.cameraserver.CameraServer;
-import edu.wpi.first.cscore.CvSink;
-import edu.wpi.first.cscore.CvSource;
-import edu.wpi.first.cscore.UsbCamera;
-import org.opencv.core.Mat;
 import org.opencv.core.Point;
-import org.opencv.core.Scalar;
-import org.opencv.core.Size;
-import org.opencv.core.MatOfPoint;
-import org.opencv.core.MatOfPoint2f;
-import org.opencv.core.Rect;
-import org.opencv.core.CvType;
-import org.opencv.imgproc.Imgproc;
-import org.opencv.core.Core;
 import java.util.List;
-import java.util.LinkedList;
-import java.text.BreakIterator;
 import java.util.ArrayList;
-import java.util.Random;
-
-import javax.management.Descriptor;
-import javax.print.attribute.standard.PrinterMessageFromOperator;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -96,16 +71,32 @@ public class Robot extends TimedRobot {
 
   private final Timer m_Timer = new Timer();
 
-  // joystick controller
-  private final PS4Controller PS4joystick = new PS4Controller(0); // 0 is the USB Port to be used as indicated on the
-                                                                  // Driver Station
+  private final PS4Controller PS4joystick = new PS4Controller(0); 
 
+  // offset value array for going from abs to relative, changes on startup
   public double[] delta_Motor = new double[] { 0.0, 0.0, 0.0, 0.0 };
 
   // Vision Variables
   private static Vision cv;
-
   private static Constants C = new Constants();
+
+  enum autoStates {
+    findRed, 
+    findGreen,
+    move,
+    stopped
+  }
+
+  private autoStates currState;
+
+  enum Colors {
+    red,
+    yellow,
+    green,
+    none
+  }
+
+  private Colors colorOfInterest;
 
   /* ------------------------------------------------------------------------- */
   /* ----------------------------- Swerve Methods ---------------------------- */
@@ -119,7 +110,6 @@ public class Robot extends TimedRobot {
     if (Math.abs(rawInput) < 0.1) {
       return 0.0;
     } else {
-      // return Math.pow(rawInput, 3);
       return rawInput;
     }
   }
@@ -294,31 +284,26 @@ public class Robot extends TimedRobot {
     RotationMotors[WHEEL_BR].setSmartCurrentLimit(20);
     RotationMotors[WHEEL_BL].setSmartCurrentLimit(20);
 
-    // define abs to relative encoder offset values
-    delta_Motor[WHEEL_FL] = wrapEncoderValues(
-        (-1 * coders[WHEEL_FL].getAbsolutePosition()) - RM_Encoders.get(WHEEL_FL).getPosition());
-    delta_Motor[WHEEL_FR] = wrapEncoderValues(
-        (-1 * coders[WHEEL_FR].getAbsolutePosition()) - RM_Encoders.get(WHEEL_FR).getPosition());
-    delta_Motor[WHEEL_BR] = wrapEncoderValues(
-        (-1 * coders[WHEEL_BR].getAbsolutePosition()) - RM_Encoders.get(WHEEL_BR).getPosition());
-    delta_Motor[WHEEL_BL] = wrapEncoderValues(
-        (-1 * coders[WHEEL_BL].getAbsolutePosition()) - RM_Encoders.get(WHEEL_BL).getPosition());
+    // set delta_Motor array values to store offset values to go from abs to relative
+    for (int i = 0; i < delta_Motor.length; i++) {
+      delta_Motor[i] = wrapEncoderValues((-1 * coders[i].getAbsolutePosition()) - RM_Encoders.get(i).getPosition());
+    }
   }
 
   /*
-   * Command motors to a given wheel angle or translation speed via API call to setReference
+   * Command motors to a given wheel angle or translation speed via setReference
    */
   private void setWheelState(List<SparkMaxPIDController> pidControllers, double[] desired_motion, boolean RM_flag, double[] setpoint) {
     
     if (RM_flag) {
-      
+      // Rotation Motors
       for (int i = 0; i <= 3; i ++) {
         RM_PIDControllers.get(i).setReference(desired_motion[i], CANSparkMax.ControlType.kSmartMotion);
       }
 
     }
     else {
-      
+      // Translation Motors
       for (int i = 0; i <= 3; i ++) {
         TM_PIDControllers.get(i).setReference(setpoint[i] * desired_motion[i], CANSparkMax.ControlType.kVelocity);
       }
@@ -391,6 +376,9 @@ public class Robot extends TimedRobot {
 
   }
 
+  /*
+   * Calculates vector sum of linear and angular velocity vectors for General Case 2 
+   */
   private double[] set_vectors(double Vx, double Vy, double omega, double x, double y, double r) {
     
     double v1x = -1 * Vy + (-1 * (omega * y / r));
@@ -417,6 +405,7 @@ public class Robot extends TimedRobot {
 
     return state;
   }
+
   /*
    * Sets all motor speeds to 0
    */
@@ -433,7 +422,7 @@ public class Robot extends TimedRobot {
   }
 
   /* ------------------------------------------------------------------------- */
-  /* ------------------------ Computer Vision Methods ------------------------ */
+  /* ------------------------- Vision + Auto Methods ------------------------- */
   /* ------------------------------------------------------------------------- */
 
   /*
@@ -443,6 +432,28 @@ public class Robot extends TimedRobot {
     cv = cv.getInstance();
     cv.startVision();
   }
+
+  /*
+   * Spin in place
+   */
+  private void spin(double[] DESIRED, double[] desired_body, double[] desired_rel1, double[] desired_translation, double[] current_rel) {
+    DESIRED[0] = -45;
+    DESIRED[1] = 45;
+    DESIRED[2] = 135;
+    DESIRED[3] = 225;
+
+    double setpoint = 0.5 * (C.Trans_maxRPM / 6);
+    double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
+    set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+
+    setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+
+    setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+  }
+  /* ------------------------------------------------------------------------- */
+  /* ----------------------------- Debug Methods ----------------------------- */
+  /* ------------------------------------------------------------------------- */
 
   /*
    * Wrapper functions to more easily output values to SmartDashboard
@@ -485,10 +496,13 @@ public class Robot extends TimedRobot {
     }
   }
 
+  /* ------------------------------------------------------------------------- */
+  /* --------------------------- FRC Robot Methods --------------------------- */
+  /* ------------------------------------------------------------------------- */
+
   /**
    * This function is run when the robot is first started up and should be used
-   * for any
-   * initialization code.
+   * for any initialization code.
    */
   @Override
   public void robotInit() {
@@ -502,13 +516,10 @@ public class Robot extends TimedRobot {
   /** This function is run once each time the robot enters autonomous mode. */
   @Override
   public void autonomousInit() {
-    TranslationMotors[WHEEL_FL].setIdleMode(IdleMode.kCoast);
-    TranslationMotors[WHEEL_FR].setIdleMode(IdleMode.kCoast);
-    TranslationMotors[WHEEL_BR].setIdleMode(IdleMode.kCoast);
-    TranslationMotors[WHEEL_BL].setIdleMode(IdleMode.kCoast);
     m_Timer.reset();
     m_Timer.start();
-    // biggestRed = new Rect(0, 0, 0, 0);
+    currState = autoStates.findRed;
+    colorOfInterest = Colors.none;
   }
 
   /** This function is called periodically during autonomous. */
@@ -545,93 +556,127 @@ public class Robot extends TimedRobot {
     double x = center.x;
     double centerx = (double) cv.imgWidth / 2;
     double x_diff = Math.abs(centerx - x);
+    
+    switch (currState) {
 
-    // if nothing of (RED) color detected, keep spinning around until detected
-    if (cv.biggestRed.area() <= C.minSpinThresh) {
-      DESIRED[0] = -45;
-      DESIRED[1] = 45;
-      DESIRED[2] = 135;
-      DESIRED[3] = 225;
-
-      double setpoint = 0.5 * (C.Trans_maxRPM / 6);
-      double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
-
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
-
-      setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
-      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-    }
-
-    // otherwise if something is detected, move towards it accordingly
-    else {
-
-      // if centered, and too far away, go closer
-      if ((cv.biggestRed.area() <= C.minDistThresh) && x_diff < C.centerThresh) {
-        System.out.println("INSIDE TOO FAR ----------------------");
-
-        DESIRED[0] = 0;
-        DESIRED[1] = 0;
-        DESIRED[2] = 0;
-        DESIRED[3] = 0;
-
-        double tempSetPoint = 0.25 * (C.Trans_maxRPM / 6);
-        double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
-
-        set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-
-        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
-        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-      }
+      case findRed:
+        System.out.println("currState = findRed ------------------------");
       
-      // else, if centered and too close go back
-      else if ((cv.biggestRed.area() > C.maxDistThresh) && x_diff < C.centerThresh) {
-        System.out.println("INSIDE TOO CLOSE ----------------------");
+        colorOfInterest = Colors.red;
 
-        DESIRED[0] = 0;
-        DESIRED[1] = 0;
-        DESIRED[2] = 0;
-        DESIRED[3] = 0;
+        // if nothing of (RED) color detected, keep spinning around until detected
+        if (cv.biggestRed.area() <= C.minSpinThresh) {
+          spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);
+        }
+        else {
+          currState = autoStates.move;
+        }
+        break;
 
-        double tempSetPoint = -0.25 * (C.Trans_maxRPM / 6);
-        double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
-
-        set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-
-        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
-        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-      } 
-
-      else if (x_diff >= C.centerThresh) {
-        System.out.println("INSIDE NOT CENTERED ----------------------");
+      case findGreen:
+        System.out.println("currState = findGreen ------------------------");
         
-        // Centering a red block if it enters into frame
-        DESIRED[0] = -45;
-        DESIRED[1] = 45;
-        DESIRED[2] = 135;
-        DESIRED[3] = 225;
+        colorOfInterest = Colors.green;
 
-        double setpoint = C.vision_kP * (centerx - x) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
-        double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+        // if nothing of (GREEN) color detected, keep spinning around until detected
+        if (cv.biggestGreen.area() <= C.minSpinThresh) {
+          spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);
+        }
+        else {
+          currState = autoStates.move;
+        }
+        break;
 
-        set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+      case move:
 
-        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+        System.out.println("currState = move ------------------------");
+        
+        double area = 0;
+          
+        if (colorOfInterest == Colors.red) {
+          area = cv.biggestRed.area();
+        }
+        else if (colorOfInterest == Colors.green) {
+          area = cv.biggestGreen.area();
+        }
+        
+        // if centered, and too far away, go closer
+        if ((area <= C.minDistThresh) && x_diff < C.centerThresh) {
+          // System.out.println("INSIDE TOO FAR ----------------------");
 
-        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+          DESIRED[0] = 0;
+          DESIRED[1] = 0;
+          DESIRED[2] = 0;
+          DESIRED[3] = 0;
 
-      } 
+          double tempSetPoint = 0.25 * (C.Trans_maxRPM / 6);
+          double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
 
-      else {
-        System.out.println("IDEAL SPOT ACHIEVED ----------------------");
+          set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
+          setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+
+          setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+          
+        }
+
+        // else, if centered and too close go back
+        else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
+          // System.out.println("INSIDE TOO CLOSE ----------------------");
+
+          DESIRED[0] = 0;
+          DESIRED[1] = 0;
+          DESIRED[2] = 0;
+          DESIRED[3] = 0;
+
+          double tempSetPoint = -0.25 * (C.Trans_maxRPM / 6);
+          double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
+
+          set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+
+          setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+
+          setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
+        } 
+
+        else if (x_diff >= C.centerThresh) {
+          // System.out.println("INSIDE NOT CENTERED ----------------------");
+          
+          // Centering a red block if it enters into frame
+          DESIRED[0] = -45;
+          DESIRED[1] = 45;
+          DESIRED[2] = 135;
+          DESIRED[3] = 225;
+
+          double setpoint = C.vision_kP * (centerx - x) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
+          double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
+          set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+
+          setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+
+          setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
+        } 
+
+        else {
+          // System.out.println("IDEAL SPOT ACHIEVED ----------------------");
+
+          currState = autoStates.findGreen;
+        }
+
+        break;
+
+      case stopped:
+
+        System.out.println("currState = stopped ------------------------");
+      
         stopMotors();
-      }
+        break;
+
+      default:
+        break;
 
     }
 
@@ -684,6 +729,8 @@ public class Robot extends TimedRobot {
     double[] desired_body = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] desired_rel1 = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] desired_translation = new double[] { 0.0, 0.0, 0.0, 0.0 };
+    double[] DESIRED = new double[] { 0.0, 0.0, 0.0, 0.0 };
+    double[] setpointArr = new double[] { 0.0, 0.0, 0.0, 0.0 };
 
     // Constants
     double x = 12.75; // distance from chassis center to module - x-component
@@ -695,13 +742,15 @@ public class Robot extends TimedRobot {
 
       // define wheel angle based on direction of joystick vectors, Vx and Vy
       double setAngle = ((Math.atan2(Vy, Vx) * 180) / Math.PI);
-
-      // in case 1, set every wheel to the same desired setAngle
-      double[] DESIRED = new double[] { setAngle, setAngle, setAngle, setAngle };
-
+      
       // define wheel speeds to be magnitude of joystick input * arbitrary 1/6th of max wheel RPM
       double setpoint = Vr * (C.Trans_maxRPM / 6);
-      double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
+      // in case 1, set every wheel to the same desired setAngle and setpoint
+      for (int i = 0; i <= 3; i++) {
+        DESIRED[i] = setAngle;
+        setpointArr[i] = setpoint;
+      }
 
       // apply pre-defined wheel offset values to get correct values
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
@@ -719,9 +768,11 @@ public class Robot extends TimedRobot {
       // linear and angular velocities
       double[] state = set_vectors(Vx, Vy, omega, x, y, r);
 
-      // in case 2, each wheel is set to a distinct angle and speed 
-      double[] DESIRED = new double[]{ state[0], state[1], state[2], state[3] };
-      double[] setpointArr = new double[] { state[4], state[5], state[6], state[7] };
+      // in case 2, each wheel is set to a distinct angle and speed
+      for (int i = 0; i <= 3; i++) {
+        DESIRED[i] = state[i];
+        setpointArr[i] = state[i + 4];
+      }
 
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
 
@@ -733,11 +784,13 @@ public class Robot extends TimedRobot {
     // Rotate in place, CASE 3
     else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
 
-      // in case 3, set each wheel angle to some 90 degree offset of each other
-      double[] DESIRED = new double[] { -45, 45, 135, 225 };
-
       double setpoint = omega * r * (C.Trans_maxRPM / 6);
-      double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
+      // in case 3, set each wheel angle to some 90 degree offset of each other
+      for (int i = 0; i <= 3; i++) {
+        DESIRED[i] = -45 + (90 * i);
+        setpointArr[i] = setpoint;
+      }
 
       set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
 
