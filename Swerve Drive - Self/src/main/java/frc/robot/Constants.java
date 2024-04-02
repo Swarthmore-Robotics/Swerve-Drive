@@ -73,7 +73,7 @@ public class Constants {
     // --------------------------------- Autonomous Constants --------------------------------- \\
 
     public double minSpinThresh = 50;
-    public double centerThresh = 40;
+    public double centerThresh = 10;
     public double minDistThresh = 2000;
     public double maxDistThresh = 2500;
 

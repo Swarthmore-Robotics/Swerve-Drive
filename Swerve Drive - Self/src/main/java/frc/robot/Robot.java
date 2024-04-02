@@ -84,7 +84,8 @@ public class Robot extends TimedRobot {
     findRed, 
     findGreen,
     move,
-    stopped
+    stopped,
+    cool
   }
 
   private autoStates currState;
@@ -97,6 +98,7 @@ public class Robot extends TimedRobot {
   }
 
   private Colors colorOfInterest;
+  private double area;
 
   /* ------------------------------------------------------------------------- */
   /* ----------------------------- Swerve Methods ---------------------------- */
@@ -442,7 +444,7 @@ public class Robot extends TimedRobot {
     DESIRED[2] = 135;
     DESIRED[3] = 225;
 
-    double setpoint = 0.5 * (C.Trans_maxRPM / 6);
+    double setpoint = 0.5 * (C.Trans_maxRPM / 7);
     double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
     set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
@@ -451,6 +453,7 @@ public class Robot extends TimedRobot {
 
     setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
   }
+
   /* ------------------------------------------------------------------------- */
   /* ----------------------------- Debug Methods ----------------------------- */
   /* ------------------------------------------------------------------------- */
@@ -517,7 +520,7 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousInit() {
     m_Timer.reset();
-    m_Timer.start();
+    // m_Timer.start();
     currState = autoStates.findRed;
     colorOfInterest = Colors.none;
   }
@@ -590,8 +593,9 @@ public class Robot extends TimedRobot {
       case move:
 
         System.out.println("currState = move ------------------------");
-        
-        double area = 0;
+        System.out.printf("colorOfInterest = %s ------------------------\n", colorOfInterest);
+        System.out.printf("area = %f ------------------------\n", area);
+      
           
         if (colorOfInterest == Colors.red) {
           area = cv.biggestRed.area();
@@ -602,7 +606,7 @@ public class Robot extends TimedRobot {
         
         // if centered, and too far away, go closer
         if ((area <= C.minDistThresh) && x_diff < C.centerThresh) {
-          // System.out.println("INSIDE TOO FAR ----------------------");
+          System.out.println("INSIDE TOO FAR ----------------------\n");
 
           DESIRED[0] = 0;
           DESIRED[1] = 0;
@@ -622,7 +626,7 @@ public class Robot extends TimedRobot {
 
         // else, if centered and too close go back
         else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
-          // System.out.println("INSIDE TOO CLOSE ----------------------");
+          System.out.println("INSIDE TOO CLOSE ----------------------\n");
 
           DESIRED[0] = 0;
           DESIRED[1] = 0;
@@ -641,7 +645,7 @@ public class Robot extends TimedRobot {
         } 
 
         else if (x_diff >= C.centerThresh) {
-          // System.out.println("INSIDE NOT CENTERED ----------------------");
+          System.out.println("INSIDE NOT CENTERED ----------------------\n");
           
           // Centering a red block if it enters into frame
           DESIRED[0] = -45;
@@ -661,7 +665,7 @@ public class Robot extends TimedRobot {
         } 
 
         else {
-          // System.out.println("IDEAL SPOT ACHIEVED ----------------------");
+          System.out.println("IDEAL SPOT ACHIEVED ----------------------");
 
           currState = autoStates.findGreen;
         }
@@ -674,6 +678,17 @@ public class Robot extends TimedRobot {
       
         stopMotors();
         break;
+      
+      case cool:
+        spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);
+
+        m_Timer.start();
+
+        if (m_Timer.get() > 1) {
+          // Rotate 180deg + Translate 6ft in 2.877s
+          
+        }
+      break;
 
       default:
         break;
@@ -739,7 +754,6 @@ public class Robot extends TimedRobot {
 
     // No rotation, CASE 1
     if (omega == 0 & (Vx != 0 | Vy != 0)) {
-
       // define wheel angle based on direction of joystick vectors, Vx and Vy
       double setAngle = ((Math.atan2(Vy, Vx) * 180) / Math.PI);
       
@@ -784,7 +798,7 @@ public class Robot extends TimedRobot {
     // Rotate in place, CASE 3
     else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
 
-      double setpoint = omega * r * (C.Trans_maxRPM / 6);
+      double setpoint = omega * (C.Trans_maxRPM / 6);
 
       // in case 3, set each wheel angle to some 90 degree offset of each other
       for (int i = 0; i <= 3; i++) {
@@ -801,7 +815,6 @@ public class Robot extends TimedRobot {
 
     // No input, CASE 4
     else {
-      printDB("Case", 4);
       // command everything to zero
       stopMotors();
     }
