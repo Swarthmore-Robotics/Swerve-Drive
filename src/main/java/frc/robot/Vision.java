@@ -207,6 +207,7 @@ public class Vision {
     private void init() {
 
         // add USB camera, create server for SmartDashboard
+        // http://roborio-6593-frc.local:1181/
         UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
         usbCamera.setResolution(imgWidth, imgHeight);
         usbCamera.setExposureManual(7);
