@@ -192,13 +192,17 @@ public class Vision {
         // add USB camera, create server for SmartDashboard
         UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
         usbCamera.setResolution(imgWidth, imgHeight);
+        usbCamera.setExposureManual(7);
+        // usbCamera.setExposureAuto();
+        usbCamera.setWhiteBalanceManual(3300);
+        usbCamera.setBrightness(60); // default 50
 
         CvSink cvSink = CameraServer.getVideo(); // grab images from camera
         CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
 
         // Init variables
         Mat sourceMat = new Mat();
-        Mat outputMat = new Mat();
+        Mat outputMat =new Mat();
         Mat tempMat = new Mat();
         BLACK_IMAGE = Mat.zeros(imgHeight, imgWidth, 16);
         BLACK_IMAGE.copyTo(sourceMat);
@@ -223,6 +227,7 @@ public class Vision {
         visionThread = new Thread(() -> {
 
             while (true) { /// TODO: change condition later
+                // System.out.println(usbCamera.getPath());
                 long startTime = System.currentTimeMillis();
 
                 if (cvSink.grabFrame(sourceMat) != 0) {
@@ -231,6 +236,7 @@ public class Vision {
 
                     // gaussian blur
                     Imgproc.GaussianBlur(sourceMat, sourceMat, C.gb, 0, 0);
+
 
                     BLACK_IMAGE.copyTo(outputMat);
 
@@ -260,7 +266,7 @@ public class Vision {
                     outputStream.putFrame(tempMat); // put processed image to smartdashboard
                     long endTime = System.currentTimeMillis();
 
-                    // System.out.println("Total execution time: " + (endTime - startTime));
+                    System.out.println("Total execution time: " + (endTime - startTime));
 
                     SmartDashboard.putString("Biggest Red Center", rectCenter(biggestRed).toString());
                     SmartDashboard.putString("Biggest Yellow Center", rectCenter(biggestYellow).toString());
