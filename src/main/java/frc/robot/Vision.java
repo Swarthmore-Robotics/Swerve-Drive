@@ -102,14 +102,18 @@ public class Vision {
         private Scalar color;
         private Scalar upperLimit;
         private Scalar lowerLimit;
-        private Mat mask;
-        private Mat tempImage;
         private List<MatOfPoint> contours;
         private Mat hierarchy;
+        private Mat tempImage;
         private Rect biggestRect;
         private List<Rect> detectedRects;
         private Rect br;
         private Rect temp;
+
+        public Mat mask;
+        public Mat contourImage;
+        public Mat contourBoundingBoxes;
+        public Mat boundingBoxes;
 
         public ColorDetector(Scalar c, Scalar ll, Scalar ul) {
             color = c;
@@ -118,6 +122,10 @@ public class Vision {
 
             mask = new Mat();
             hierarchy = new Mat();
+            boundingBoxes = new Mat();
+            tempImage = new Mat();
+            contourImage = new Mat();
+            contourBoundingBoxes = new Mat();
             contours = new ArrayList<MatOfPoint>();
             detectedRects = new ArrayList<Rect>();
         }
@@ -125,6 +133,9 @@ public class Vision {
         private void reset() {
             BLACK_IMAGE.copyTo(mask);
             BLACK_IMAGE.copyTo(hierarchy);
+            BLACK_IMAGE.copyTo(boundingBoxes);
+            BLACK_IMAGE.copyTo(contourBoundingBoxes);
+            BLACK_IMAGE.copyTo(contourImage);
             contours.clear();
         }
 
@@ -134,10 +145,13 @@ public class Vision {
 
             Core.inRange(image, this.lowerLimit, this.upperLimit, this.mask);
 
+
             Imgproc.findContours(this.mask, this.contours, this.hierarchy, Imgproc.RETR_EXTERNAL,
                     Imgproc.CHAIN_APPROX_SIMPLE);
 
-            // BLACK_IMAGE.copyTo(tempImage);
+            BLACK_IMAGE.copyTo(contourImage);
+            BLACK_IMAGE.copyTo(boundingBoxes);
+            BLACK_IMAGE.copyTo(contourBoundingBoxes);
 
             if (this.contours.size() == 0) {
                 temp = C.EMPTY_RECT;
@@ -145,15 +159,18 @@ public class Vision {
                 this.temp = C.EMPTY_RECT;
                 this.detectedRects.clear();
                 for (int i = 0; i < Math.min(this.contours.size(), C.MAX_OBJECT_DETECT); i++) {
-                    // Imgproc.drawContours(sourceMat, contours, i, redColor, 2, Imgproc.LINE_8,
-                    // hierarchy, 0, new Point());
+                    Imgproc.drawContours(contourImage, this.contours, i, C.WHITE_COLOR, 1, Imgproc.LINE_8, this. hierarchy, 0);
+                    Imgproc.drawContours(contourBoundingBoxes, this.contours, i, C.WHITE_COLOR, 1, Imgproc.LINE_8, this. hierarchy, 0);
                     br = Imgproc.boundingRect(this.contours.get(i));
                     this.detectedRects.add(br);
                     if (br.area() > temp.area()) {
                         this.temp = br;
                     }
                     if (C.VERBOSE) {
-                        Imgproc.rectangle(image, br.tl(), br.br(), color, 1);
+                        Imgproc.rectangle(image, br.tl(), br.br(), this.color, 1);
+                    }else{
+                        Imgproc.rectangle(boundingBoxes, br.tl(), br.br(), this.color, 1);
+                        Imgproc.rectangle(contourBoundingBoxes, br.tl(), br.br(), this.color, 1);
                     }
                 }
 
@@ -199,11 +216,19 @@ public class Vision {
 
         CvSink cvSink = CameraServer.getVideo(); // grab images from camera
         CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
+        CvSource outputStreamGB = CameraServer.putVideo("Gaussian Blur", imgWidth, imgHeight);
+        CvSource outputStreamColorThresh = CameraServer.putVideo("Color Threshold", imgWidth, imgHeight);
+        CvSource outputStreamContours = CameraServer.putVideo("Contours", imgWidth, imgHeight);
+        CvSource outputStreamContoursBB = CameraServer.putVideo("Contours And Bounding Boxes", imgWidth, imgHeight);
+        CvSource outputStreamBB = CameraServer.putVideo("Bounding Boxes", imgWidth, imgHeight);
+        CvSource outputStreamArea = CameraServer.putVideo("Biggest Area Center", imgWidth, imgHeight);
+        CvSource outputStreamFinal = CameraServer.putVideo("Final", imgWidth, imgHeight);
 
         // Init variables
         Mat sourceMat = new Mat();
         Mat outputMat =new Mat();
         Mat tempMat = new Mat();
+        Mat redAreaCenter = new Mat();
         BLACK_IMAGE = Mat.zeros(imgHeight, imgWidth, 16);
         BLACK_IMAGE.copyTo(sourceMat);
         BLACK_IMAGE.copyTo(outputMat);
@@ -237,14 +262,28 @@ public class Vision {
                     // gaussian blur
                     Imgproc.GaussianBlur(sourceMat, sourceMat, C.gb, 0, 0);
 
+                    outputStreamGB.putFrame(sourceMat);
 
                     BLACK_IMAGE.copyTo(outputMat);
+                    BLACK_IMAGE.copyTo(redAreaCenter);
 
                     // color detection
                     for (int i = 0; i < numDetectors; i++) {
                         // for(int i = 0; i < 1; i++){
                         ColorDetector cd = detectors.get(i);
                         biggestColors[i] = cd.findRects(sourceMat);
+                        if(i == 0){ // only do red color
+                            outputStreamColorThresh.putFrame(cd.mask);
+                            outputStreamContours.putFrame(cd.contourImage);
+                            outputStreamContoursBB.putFrame(cd.contourBoundingBoxes);
+                            outputStreamBB.putFrame(cd.boundingBoxes);
+
+                            redAreaCenter.setTo(cd.color, cd.mask);
+                            Imgproc.rectangle(redAreaCenter, biggestColors[i].tl(), biggestColors[i].br(), cd.color, 1);
+                            Imgproc.circle(redAreaCenter, rectCenter(biggestColors[i]), 3, C.BLUE_COLOR, -1);
+
+                            outputStreamArea.putFrame(redAreaCenter);
+                        }
                         // System.out.println("found red");
                         outputMat.setTo(cd.color, cd.mask);
                         if (!C.VERBOSE) {
@@ -252,6 +291,7 @@ public class Vision {
                             Imgproc.circle(outputMat, rectCenter(biggestColors[i]), 3, C.BLUE_COLOR, -1);
                             Imgproc.rectangle(tempMat, biggestColors[i].tl(), biggestColors[i].br(), cd.color, 1);
                             Imgproc.circle(tempMat, rectCenter(biggestColors[i]), 3, C.BLUE_COLOR, -1);
+                            
                         }
                     }
 
@@ -264,6 +304,7 @@ public class Vision {
 
                     // output results
                     outputStream.putFrame(tempMat); // put processed image to smartdashboard
+                    outputStreamFinal.putFrame(outputMat);
                     long endTime = System.currentTimeMillis();
 
                     System.out.println("Total execution time: " + (endTime - startTime));
