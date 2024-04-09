@@ -61,13 +61,15 @@ public class Constants {
 
     // BGR thresholding values
     public Scalar redLower = new Scalar(0, 0, 55);
-    public Scalar redUpper = new Scalar(80, 35, 255);
+    public Scalar redUpper = new Scalar(50, 35, 255);
 
-    public Scalar yellowLower = new Scalar(0, 150, 175);
-    public Scalar yellowUpper = new Scalar(140, 200, 230);
+    public Scalar yellowLower = new Scalar(0, 160, 175);
+    public Scalar yellowUpper = new Scalar(40, 210, 255);
+    // bad: 44, 152, 216
+    // good: 29, 196, 255
 
-    public Scalar greenLower = new Scalar(0, 180, 0);
-    public Scalar greenUpper = new Scalar(170, 255, 200);
+    public Scalar greenLower = new Scalar(0, 100, 0);
+    public Scalar greenUpper = new Scalar(150, 255, 50);
 
     
     // --------------------------------- Autonomous Constants --------------------------------- \\
