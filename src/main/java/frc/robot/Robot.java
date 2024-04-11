@@ -99,6 +99,11 @@ public class Robot extends TimedRobot {
 
   private Colors colorOfInterest;
   private double area;
+  final double cool_omega = -0.7; // rad / s
+  final double cool_speed = 0.4; // m / s
+  private double Vx_auto;
+  private double Vy_auto;
+  private double omega_auto;
 
   /* ------------------------------------------------------------------------- */
   /* ----------------------------- Swerve Methods ---------------------------- */
@@ -318,7 +323,7 @@ public class Robot extends TimedRobot {
    * Sets the desired wheel angles and direction of translation for each wheel
    * module, per case
    */
-  private void set_desired(double[] desired_body, double[] DESIRED, double[] current_rel, double[] desired_rel1,
+  private void apply_offsets(double[] desired_body, double[] DESIRED, double[] current_rel, double[] desired_rel1,
       double[] desired_translation, int CASE) {
 
     // Set desired angles based on input parameter DESIRED storing desired wheel
@@ -447,7 +452,7 @@ public class Robot extends TimedRobot {
     double setpoint = 0.5 * (C.Trans_maxRPM / 7);
     double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
-    set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+    apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
 
     setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
@@ -554,8 +559,15 @@ public class Robot extends TimedRobot {
     double[] desired_rel1 = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] desired_translation = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] DESIRED = new double[] { 0, 0, 0, 0 };
-
     Point center = cv.rectCenter(cv.biggestRed);
+    ;
+
+    if (colorOfInterest == Colors.red) {
+      center = cv.rectCenter(cv.biggestRed);
+    }
+    else if (colorOfInterest == Colors.green) {
+      center = cv.rectCenter(cv.biggestGreen);
+    }
     double x = center.x;
     double centerx = (double) cv.imgWidth / 2;
     double x_diff = Math.abs(centerx - x);
@@ -616,7 +628,7 @@ public class Robot extends TimedRobot {
           double tempSetPoint = 0.25 * (C.Trans_maxRPM / 6);
           double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
 
-          set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+          apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
           setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
@@ -636,7 +648,7 @@ public class Robot extends TimedRobot {
           double tempSetPoint = -0.25 * (C.Trans_maxRPM / 6);
           double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
 
-          set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+          apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
           setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
@@ -656,7 +668,7 @@ public class Robot extends TimedRobot {
           double setpoint = C.vision_kP * (centerx - x) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
           double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
-          set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+          apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
 
           setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
@@ -680,14 +692,46 @@ public class Robot extends TimedRobot {
         break;
       
       case cool:
-        spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);
 
-        m_Timer.start();
+        //m_Timer.start();
+        double time = m_Timer.get();
 
-        if (m_Timer.get() > 1) {
-          // Rotate 180deg + Translate 6ft in 2.877s
-          
+        printDB("Vx_auto", Vx_auto);
+        printDB("Vy_auto", Vy_auto);
+        printDB("omega_auto", omega_auto);
+
+            // Constants
+        double dist_x = 12.75;
+        double dist_y = 12.75;
+        double r = mag(dist_x, dist_y);
+        
+        // assume omega = 0.1 rad/s
+        // at t=0, theta=0, robot should be moving in the [1, 0] direction
+        // at t=10*pi/2 seconds, theta=pi/2, robot should be moving in the [0, -1] direction
+        // at t=10*pi seconds, theta=pi, robot should be moving in the [-1, 0] direction 
+        double theta = time * cool_omega;
+
+        omega_auto = cool_omega;
+
+        Vx_auto = Math.cos(theta) * cool_speed;
+        Vy_auto = -Math.sin(theta) * cool_speed;
+
+        double[] setpointArr = new double[] { 0, 0, 0, 0 };
+        // calculate the vector sum of joystick inputs to define each respective wheel module's 
+        // linear and angular velocities
+        double[] state = set_vectors(Vx_auto, Vy_auto, omega_auto, dist_x, dist_y, r);
+
+        // in case 2, each wheel is set to a distinct angle and speed
+        for (int j = 0; j <= 3; j++) {
+          DESIRED[j] = state[j];
+          setpointArr[j] = state[j + 4];
         }
+
+        apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
       break;
 
       default:
@@ -767,7 +811,7 @@ public class Robot extends TimedRobot {
       }
 
       // apply pre-defined wheel offset values to get correct values
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
+      apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
 
       // command wheel modules to the desired wheel angles and speeds
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
@@ -788,7 +832,7 @@ public class Robot extends TimedRobot {
         setpointArr[i] = state[i + 4];
       }
 
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
+      apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
 
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
@@ -806,7 +850,7 @@ public class Robot extends TimedRobot {
         setpointArr[i] = setpoint;
       }
 
-      set_desired(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+      apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
 
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);

@@ -4,6 +4,7 @@ import edu.wpi.first.cameraserver.CameraServer;
 import edu.wpi.first.cscore.CvSink;
 import edu.wpi.first.cscore.CvSource;
 import edu.wpi.first.cscore.UsbCamera;
+import edu.wpi.first.cscore.VideoCamera;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 import org.opencv.core.Mat;
@@ -192,10 +193,12 @@ public class Vision {
         // add USB camera, create server for SmartDashboard
         UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
         usbCamera.setResolution(imgWidth, imgHeight);
-        usbCamera.setExposureManual(7);
-        // usbCamera.setExposureAuto();
+        usbCamera.setExposureManual(5);
         usbCamera.setWhiteBalanceManual(3300);
         usbCamera.setBrightness(60); // default 50
+        usbCamera.getProperty("focus_auto").set(0);
+        usbCamera.getProperty("saturation").set(100);
+        
 
         CvSink cvSink = CameraServer.getVideo(); // grab images from camera
         CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
