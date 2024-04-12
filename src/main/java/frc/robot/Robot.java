@@ -320,8 +320,8 @@ public class Robot extends TimedRobot {
   }
 
   /*
-   * Sets the desired wheel angles and direction of translation for each wheel
-   * module, per case
+   * Applies pre-defined wheel offset values and sets the desired wheel angles and direction of translation
+   * for each wheel module
    */
   private void apply_offsets(double[] desired_body, double[] DESIRED, double[] current_rel, double[] desired_rel1,
       double[] desired_translation, int CASE) {
@@ -792,75 +792,33 @@ public class Robot extends TimedRobot {
     double[] setpointArr = new double[] { 0.0, 0.0, 0.0, 0.0 };
 
     // Constants
-    double x = 12.75; // distance from chassis center to module - x-component
-    double y = 12.75; // distance from chassis center to module - y-component
+    double x = 12.75; // distance from chassis center to module (in) - x-component
+    double y = 12.75; // distance from chassis center to module (in) - y-component
     double r = mag(x, y); // needed to make x,y dimensionless
 
-    // No rotation, CASE 1
-    if (omega == 0 & (Vx != 0 | Vy != 0)) {
-      // define wheel angle based on direction of joystick vectors, Vx and Vy
-      double setAngle = ((Math.atan2(Vy, Vx) * 180) / Math.PI);
-      
-      // define wheel speeds to be magnitude of joystick input * arbitrary 1/6th of max wheel RPM
-      double setpoint = Vr * (C.Trans_maxRPM / 6);
 
-      // in case 1, set every wheel to the same desired setAngle and setpoint
-      for (int i = 0; i <= 3; i++) {
-        DESIRED[i] = setAngle;
-        setpointArr[i] = setpoint;
-      }
-
-      // apply pre-defined wheel offset values to get correct values
-      apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-
-      // command wheel modules to the desired wheel angles and speeds
-      setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
+    // If no input, command everything to zero
+    if (Vx == 0 & Vy == 0 & omega == 0) {
+      stopMotors();
     }
-
-    // General Case, CASE 2
-    else if (omega != 0 & (Vx != 0 | Vy != 0)) {
-
+    else {
       // calculate the vector sum of joystick inputs to define each respective wheel module's 
       // linear and angular velocities
       double[] state = set_vectors(Vx, Vy, omega, x, y, r);
 
-      // in case 2, each wheel is set to a distinct angle and speed
+      // store calculated wheel angles and speeds
       for (int i = 0; i <= 3; i++) {
         DESIRED[i] = state[i];
         setpointArr[i] = state[i + 4];
       }
 
+      // apply pre-defined wheel offset values to get correct values
       apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
 
+      // command wheel modules to the desired wheel angles and speeds
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-    }
-
-    // Rotate in place, CASE 3
-    else if (Vx == 0.0 & Vy == 0.0 & omega != 0) {
-
-      double setpoint = omega * (C.Trans_maxRPM / 6);
-
-      // in case 3, set each wheel angle to some 90 degree offset of each other
-      for (int i = 0; i <= 3; i++) {
-        DESIRED[i] = -45 + (90 * i);
-        setpointArr[i] = setpoint;
-      }
-
-      apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
-
-      setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-    }
-
-    // No input, CASE 4
-    else {
-      // command everything to zero
-      stopMotors();
+      
     }
 
   }
