@@ -10,15 +10,17 @@ import com.revrobotics.SparkMaxPIDController;
 import com.revrobotics.CANSparkMax.IdleMode;
 import com.revrobotics.CANSparkMaxLowLevel.MotorType;
 import com.revrobotics.RelativeEncoder;
-
 import com.ctre.phoenix.sensors.CANCoder;
 
+// WPILIB, Servo
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.PS4Controller;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj.Servo;
 
 import org.opencv.core.Point;
+
 import java.util.List;
 import java.util.ArrayList;
 
@@ -104,6 +106,9 @@ public class Robot extends TimedRobot {
   private double Vx_auto;
   private double Vy_auto;
   private double omega_auto;
+
+  // private final Servo Servo = new Servo(1);
+  private static Arm arm;
 
   /* ------------------------------------------------------------------------- */
   /* ----------------------------- Swerve Methods ---------------------------- */
@@ -298,6 +303,18 @@ public class Robot extends TimedRobot {
   }
 
   /*
+   * Close and open gripper based on a button press
+   */
+  private void closeGrip(boolean pressed, boolean released) {
+    if (pressed) {
+      Arm.Gripper.set(Arm.GRIPPER_MAX);
+    }
+    else if (released) {
+      Arm.Gripper.set(Arm.GRIPPER_MIN);
+    }
+  }
+
+  /*
    * Command motors to a given wheel angle or translation speed via setReference
    */
   private void setWheelState(List<SparkMaxPIDController> pidControllers, double[] desired_motion, boolean RM_flag, double[] setpoint) {
@@ -324,7 +341,7 @@ public class Robot extends TimedRobot {
    * for each wheel module
    */
   private void apply_offsets(double[] desired_body, double[] DESIRED, double[] current_rel, double[] desired_rel1,
-      double[] desired_translation, int CASE) {
+      double[] desired_translation) {
 
     // Set desired angles based on input parameter DESIRED storing desired wheel
     // angles in robot frame
@@ -366,20 +383,10 @@ public class Robot extends TimedRobot {
     desired_rel1[WHEEL_BR] = res3[0];
     desired_rel1[WHEEL_BL] = res4[0];
 
-    desired_translation[WHEEL_FL] = res1[1];
+    desired_translation[WHEEL_FL] = -1 * res1[1];
     desired_translation[WHEEL_FR] = res2[1];
-    desired_translation[WHEEL_BR] = res3[1];
+    desired_translation[WHEEL_BR] = -1 * res3[1];
     desired_translation[WHEEL_BL] = res4[1];
-
-    // No rotation, CASE 1
-    if (CASE == 1 || CASE == 2) {
-
-      // Translation results (whether to flip or not)
-      desired_translation[WHEEL_FL] = -1 * res1[1];
-      desired_translation[WHEEL_FR] = res2[1];
-      desired_translation[WHEEL_BR] = -1 * res3[1];
-      desired_translation[WHEEL_BL] = res4[1];
-    }
 
   }
 
@@ -450,9 +457,9 @@ public class Robot extends TimedRobot {
     DESIRED[3] = 225;
 
     double setpoint = 0.5 * (C.Trans_maxRPM / 7);
-    double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+    double[] setpointArr = new double[] {-1 * setpoint, setpoint, -1 * setpoint, setpoint};
 
-    apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+    apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
 
     setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
 
@@ -525,7 +532,6 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousInit() {
     m_Timer.reset();
-    // m_Timer.start();
     currState = autoStates.findRed;
     colorOfInterest = Colors.none;
   }
@@ -534,12 +540,6 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousPeriodic() {
 
-    double[] current_abs = new double[] {
-        coders[WHEEL_FL].getAbsolutePosition(),
-        coders[WHEEL_FR].getAbsolutePosition(),
-        coders[WHEEL_BR].getAbsolutePosition(),
-        coders[WHEEL_BL].getAbsolutePosition()
-    };
     double[] current_rel = new double[] {
         RM_Encoders.get(WHEEL_FL).getPosition(),
         RM_Encoders.get(WHEEL_FR).getPosition(),
@@ -547,20 +547,14 @@ public class Robot extends TimedRobot {
         RM_Encoders.get(WHEEL_BL).getPosition()
     };
 
-    // Print absolute CANCoder values
-    printDB("CANCODER", current_abs);
-
-    // Print relative Encoder values
-    printDB("RM_Encoder.getPosition()", current_rel);
-
     // Initialize empty arrays for RM and TM setPoint values to be used later by
     // setReference
     double[] desired_body = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] desired_rel1 = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] desired_translation = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] DESIRED = new double[] { 0, 0, 0, 0 };
+
     Point center = cv.rectCenter(cv.biggestRed);
-    ;
 
     if (colorOfInterest == Colors.red) {
       center = cv.rectCenter(cv.biggestRed);
@@ -568,10 +562,14 @@ public class Robot extends TimedRobot {
     else if (colorOfInterest == Colors.green) {
       center = cv.rectCenter(cv.biggestGreen);
     }
+
     double x = center.x;
     double centerx = (double) cv.imgWidth / 2;
     double x_diff = Math.abs(centerx - x);
     
+    double setpoint = 0;
+    double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+
     switch (currState) {
 
       case findRed:
@@ -586,7 +584,7 @@ public class Robot extends TimedRobot {
         else {
           currState = autoStates.move;
         }
-        break;
+      break;
 
       case findGreen:
         System.out.println("currState = findGreen ------------------------");
@@ -600,7 +598,7 @@ public class Robot extends TimedRobot {
         else {
           currState = autoStates.move;
         }
-        break;
+      break;
 
       case move:
 
@@ -616,47 +614,8 @@ public class Robot extends TimedRobot {
           area = cv.biggestGreen.area();
         }
         
-        // if centered, and too far away, go closer
-        if ((area <= C.minDistThresh) && x_diff < C.centerThresh) {
-          System.out.println("INSIDE TOO FAR ----------------------\n");
-
-          DESIRED[0] = 0;
-          DESIRED[1] = 0;
-          DESIRED[2] = 0;
-          DESIRED[3] = 0;
-
-          double tempSetPoint = 0.25 * (C.Trans_maxRPM / 6);
-          double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
-
-          apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-
-          setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
-          setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-          
-        }
-
-        // else, if centered and too close go back
-        else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
-          System.out.println("INSIDE TOO CLOSE ----------------------\n");
-
-          DESIRED[0] = 0;
-          DESIRED[1] = 0;
-          DESIRED[2] = 0;
-          DESIRED[3] = 0;
-
-          double tempSetPoint = -0.25 * (C.Trans_maxRPM / 6);
-          double[] setpointArr = new double[] {tempSetPoint, tempSetPoint, tempSetPoint, tempSetPoint};
-
-          apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 1);
-
-          setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
-          setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-        } 
-
-        else if (x_diff >= C.centerThresh) {
+        // if not centered
+        if (x_diff >= C.centerThresh) {
           System.out.println("INSIDE NOT CENTERED ----------------------\n");
           
           // Centering a red block if it enters into frame
@@ -665,42 +624,87 @@ public class Robot extends TimedRobot {
           DESIRED[2] = 135;
           DESIRED[3] = 225;
 
-          double setpoint = C.vision_kP * (centerx - x) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
-          double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
-
-          apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
-
-          setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-
-          setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-        } 
-
-        else {
-          System.out.println("IDEAL SPOT ACHIEVED ----------------------");
-
-          currState = autoStates.findGreen;
+          setpoint = C.vision_kP * (centerx - x) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
+          for (int i = 0; i <=3; i++) {
+            if (i % 2 == 0) {
+              setpointArr[i] = -1 * setpoint;
+            }
+            else {
+              setpointArr[i] = setpoint;
+            }    
+          }
         }
 
-        break;
+        // if centered, move closer or farther away
+        else {
+
+          // if too far away, go closer
+          if (area <= C.minDistThresh) {
+            System.out.println("INSIDE TOO FAR ----------------------\n");
+
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
+
+            setpoint = 0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
+            
+          }
+
+          // if too close, go back
+          else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
+            System.out.println("INSIDE TOO CLOSE ----------------------\n");
+
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
+
+            setpoint = -0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
+
+          } 
+
+          // otherwise, ideal spot achieved
+          else {
+            System.out.println("IDEAL SPOT ACHIEVED ----------------------");
+
+            // red-following demo
+            stopMotors();
+            currState = autoStates.findRed;
+
+            // red-green loop demo
+            // currState = autoStates.findGreen;
+
+            // etc.
+          }
+          
+        }
+
+        apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
+
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
+      break;
 
       case stopped:
 
         System.out.println("currState = stopped ------------------------");
       
         stopMotors();
-        break;
+      break;
       
       case cool:
 
-        //m_Timer.start();
         double time = m_Timer.get();
 
-        printDB("Vx_auto", Vx_auto);
-        printDB("Vy_auto", Vy_auto);
-        printDB("omega_auto", omega_auto);
-
-            // Constants
+        // Constants
         double dist_x = 12.75;
         double dist_y = 12.75;
         double r = mag(dist_x, dist_y);
@@ -716,7 +720,6 @@ public class Robot extends TimedRobot {
         Vx_auto = Math.cos(theta) * cool_speed;
         Vy_auto = -Math.sin(theta) * cool_speed;
 
-        double[] setpointArr = new double[] { 0, 0, 0, 0 };
         // calculate the vector sum of joystick inputs to define each respective wheel module's 
         // linear and angular velocities
         double[] state = set_vectors(Vx_auto, Vy_auto, omega_auto, dist_x, dist_y, r);
@@ -727,7 +730,7 @@ public class Robot extends TimedRobot {
           setpointArr[j] = state[j + 4];
         }
 
-        apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 3);
+        apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
 
         setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
         setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
@@ -752,24 +755,12 @@ public class Robot extends TimedRobot {
   @Override
   public void teleopPeriodic() {
 
-    double[] current_abs = new double[] {
-        coders[WHEEL_FL].getAbsolutePosition(),
-        coders[WHEEL_FR].getAbsolutePosition(),
-        coders[WHEEL_BR].getAbsolutePosition(),
-        coders[WHEEL_BL].getAbsolutePosition()
-    };
     double[] current_rel = new double[] {
         RM_Encoders.get(WHEEL_FL).getPosition(),
         RM_Encoders.get(WHEEL_FR).getPosition(),
         RM_Encoders.get(WHEEL_BR).getPosition(),
         RM_Encoders.get(WHEEL_BL).getPosition()
     };
-
-    // Print absolute CANCoder values
-    printDB("CANCODER", current_abs);
-
-    // Print relative Encoder values
-    printDB("RM_Encoder.getPosition()", current_rel);
 
     // Obtain mapped and filtered joystick inputs
     double Vx = (-1) * highpassFilter(PS4joystick.getLeftY());
@@ -796,7 +787,10 @@ public class Robot extends TimedRobot {
     double y = 12.75; // distance from chassis center to module (in) - y-component
     double r = mag(x, y); // needed to make x,y dimensionless
 
-
+    boolean SqPressed = PS4joystick.getSquareButtonPressed();
+    boolean SqReleased = PS4joystick.getSquareButtonReleased();
+    closeGrip(SqPressed, SqReleased);
+    
     // If no input, command everything to zero
     if (Vx == 0 & Vy == 0 & omega == 0) {
       stopMotors();
@@ -813,7 +807,7 @@ public class Robot extends TimedRobot {
       }
 
       // apply pre-defined wheel offset values to get correct values
-      apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation, 2);
+      apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
 
       // command wheel modules to the desired wheel angles and speeds
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
@@ -826,10 +820,28 @@ public class Robot extends TimedRobot {
   /** This function is called once each time the robot enters test mode. */
   @Override
   public void testInit() {
+    arm.setGripper(Arm.GRIPPER_MIN);
   }
 
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
+
+    boolean SqPressed = PS4joystick.getSquareButtonPressed();
+    boolean SqReleased = PS4joystick.getSquareButtonReleased();
+
+    // double ServoAngle = Servo.getAngle();
+    double GripperPosition = Arm.Gripper.get();
+    arm.setGripper(0.1);
+
+    // System.out.println("----------------------------------------");
+    // System.out.printf("ServoAngle = %f \n", ServoAngle);
+    System.out.println("----------------------------------------");
+    System.out.printf("GripperPosition = %f \n", GripperPosition);
+
+
+
+    
+
   }
 }

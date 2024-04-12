@@ -203,7 +203,7 @@ public class Vision {
         usbCamera.getProperty("exposure_auto").set(1);
         usbCamera.getProperty("exposure_auto_priority").set(0);
         usbCamera.getProperty("exposure_absolute").set(4);
-        usbCamera.getProperty("gain").set(10);
+        usbCamera.getProperty("gain").set(8);
         
         
 
@@ -276,7 +276,7 @@ public class Vision {
                     outputStream.putFrame(tempMat); // put processed image to smartdashboard
                     long endTime = System.currentTimeMillis();
 
-                    System.out.println("Total execution time: " + (endTime - startTime));
+                    // System.out.println("Total execution time: " + (endTime - startTime));
 
                     SmartDashboard.putString("Biggest Red Center", rectCenter(biggestRed).toString());
                     SmartDashboard.putString("Biggest Yellow Center", rectCenter(biggestYellow).toString());
