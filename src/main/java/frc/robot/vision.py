@@ -35,23 +35,30 @@ if __name__ == "__main__":
 
     vision_nt = nt.getTable("Vision")
 
-    img = np.zeros((640, 480, 3), dtype=float)
+    img = np.zeros((640, 480, 3), dtype=np.uint8)
+
+    redmin = (0, 100, 100)
+    redmax = (10, 255, 255)
 
     time.sleep(0.5)
 
     while True:
-        start_time = time.time()
 
-        frame_time, input_img = input_stream.grabFrame(img)
-        output_img = np.copy(input_img)
+        if(input_stream.grabFrame(img) != 0):
+            start_time = time.time()
 
-        end_time = time.time()
+            output_img = np.copy(img)
 
-        process_time = end_time - start_time
-        fps = 1/process_time
-        cv2.putText(output_img, str(round(fps, 1)), (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            redmask = cv2.inRange(hsv, redmin, redmax)
 
-        output_stream.putFrame(output_img)
+            end_time = time.time()
+
+            process_time = end_time - start_time
+            fps = 1/process_time
+            cv2.putText(output_img, str(round(fps, 1)), (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
+
+            output_stream.putFrame(redmask)
 
 #   JSON format:
 #   {
