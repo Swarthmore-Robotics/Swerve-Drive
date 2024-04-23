@@ -85,7 +85,9 @@ public class Robot extends TimedRobot {
   enum autoStates {
     findRed, 
     findGreen,
+    findYellow,
     move,
+    transport,
     stopped,
     cool
   }
@@ -534,6 +536,7 @@ public class Robot extends TimedRobot {
     m_Timer.reset();
     currState = autoStates.findRed;
     colorOfInterest = Colors.none;
+    Arm.Gripper.set(Arm.GRIPPER_MIN);
   }
 
   /** This function is called periodically during autonomous. */
@@ -554,6 +557,10 @@ public class Robot extends TimedRobot {
     double[] desired_translation = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] DESIRED = new double[] { 0, 0, 0, 0 };
 
+    double GripperPosition = Arm.Gripper.get();
+
+    printDB("Gripper Position", GripperPosition);
+
     Point center = cv.rectCenter(cv.biggestRed);
 
     if (colorOfInterest == Colors.red) {
@@ -561,6 +568,9 @@ public class Robot extends TimedRobot {
     }
     else if (colorOfInterest == Colors.green) {
       center = cv.rectCenter(cv.biggestGreen);
+    }
+    else if (colorOfInterest == Colors.yellow) {
+      center = cv.rectCenter(cv.biggestYellow);
     }
 
     double x = center.x;
@@ -570,10 +580,12 @@ public class Robot extends TimedRobot {
     double setpoint = 0;
     double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
+    String tempState = "";
+
     switch (currState) {
 
       case findRed:
-        System.out.println("currState = findRed ------------------------");
+        tempState = "findRed";
       
         colorOfInterest = Colors.red;
 
@@ -587,7 +599,7 @@ public class Robot extends TimedRobot {
       break;
 
       case findGreen:
-        System.out.println("currState = findGreen ------------------------");
+        tempState = "findGreen";
         
         colorOfInterest = Colors.green;
 
@@ -600,18 +612,31 @@ public class Robot extends TimedRobot {
         }
       break;
 
-      case move:
+      case findYellow:
+      tempState = "findYellow";
+    
+      colorOfInterest = Colors.yellow;
 
-        System.out.println("currState = move ------------------------");
-        System.out.printf("colorOfInterest = %s ------------------------\n", colorOfInterest);
-        System.out.printf("area = %f ------------------------\n", area);
-      
+      // if nothing of (RED) color detected, keep spinning around until detected
+      if (cv.biggestRed.area() <= C.minSpinThresh) {
+        spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);
+      }
+      else {
+        currState = autoStates.move;
+      }
+    break;
+
+      case move:
+        tempState = "move";
           
         if (colorOfInterest == Colors.red) {
           area = cv.biggestRed.area();
         }
         else if (colorOfInterest == Colors.green) {
           area = cv.biggestGreen.area();
+        }
+        else if (colorOfInterest == Colors.yellow) {
+          area = cv.biggestYellow.area();
         }
         
         // if not centered
@@ -675,13 +700,15 @@ public class Robot extends TimedRobot {
             System.out.println("IDEAL SPOT ACHIEVED ----------------------");
 
             // red-following demo
-            stopMotors();
-            currState = autoStates.findRed;
+            // stopMotors();
+            // currState = autoStates.findRed;
 
             // red-green loop demo
             // currState = autoStates.findGreen;
 
-            // etc.
+            // pick-up and transport demo
+            Arm.Gripper.set(Arm.GRIPPER_MAX);
+            currState = autoStates.transport;
           }
           
         }
@@ -692,15 +719,23 @@ public class Robot extends TimedRobot {
         setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
       break;
+      
+      case transport:
+        tempState = "transport";
+
+        stopMotors();
+      break;
 
       case stopped:
-
-        System.out.println("currState = stopped ------------------------");
+        tempState = "stopped";
       
         stopMotors();
+
       break;
       
       case cool:
+
+        tempState = "cool";
 
         double time = m_Timer.get();
 
@@ -738,6 +773,7 @@ public class Robot extends TimedRobot {
       break;
 
       default:
+        printDB("STATE", tempState);
         break;
 
     }
@@ -820,22 +856,16 @@ public class Robot extends TimedRobot {
   /** This function is called once each time the robot enters test mode. */
   @Override
   public void testInit() {
-    arm.setGripper(Arm.GRIPPER_MIN);
+    m_Timer.reset();
+    Arm.Gripper.set(Arm.GRIPPER_MIN);
   }
 
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
 
-    boolean SqPressed = PS4joystick.getSquareButtonPressed();
-    boolean SqReleased = PS4joystick.getSquareButtonReleased();
-
-    // double ServoAngle = Servo.getAngle();
     double GripperPosition = Arm.Gripper.get();
-    arm.setGripper(0.1);
 
-    // System.out.println("----------------------------------------");
-    // System.out.printf("ServoAngle = %f \n", ServoAngle);
     System.out.println("----------------------------------------");
     System.out.printf("GripperPosition = %f \n", GripperPosition);
 

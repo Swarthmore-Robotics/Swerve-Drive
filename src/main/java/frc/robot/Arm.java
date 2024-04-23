@@ -13,9 +13,10 @@ public class Arm {
     // Constants for arm range of motion
     public static final double GRIPPER_MIN = 0.15;
     public static final double GRIPPER_MAX = 0.65;
+    public static final double GRIPPER_INIT = 0.30;
 
     // Current positions for each servo
-    private double gripperPosition = GRIPPER_MIN;
+    private double gripperPosition = GRIPPER_INIT;
     // private double lifterAngle;
 
     public void setGripper(double position) {

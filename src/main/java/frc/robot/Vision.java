@@ -203,7 +203,7 @@ public class Vision {
         usbCamera.getProperty("exposure_auto").set(1);
         usbCamera.getProperty("exposure_auto_priority").set(0);
         usbCamera.getProperty("exposure_absolute").set(4);
-        usbCamera.getProperty("gain").set(8);
+        usbCamera.getProperty("gain").set(5);
         
         
 
