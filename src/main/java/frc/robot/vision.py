@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
     img = np.zeros((WIDTH, HEIGHT, 3), dtype=np.uint8)
 
-    counter = 0
+    # counter = 0
 
     time.sleep(0.5)
 
@@ -89,7 +89,7 @@ if __name__ == "__main__":
                 a = w*h
                 centerx = x + (w/2)
                 centery = y + (h/2)
-                if a > biggestArea:
+                if a > biggestAreaTemp:
                     biggestAreaTemp = a
                     biggestXTemp = centerx
                     biggestYTemp = centery
@@ -104,8 +104,8 @@ if __name__ == "__main__":
             # fps = 1/process_time
             # cv2.putText(output_img, str(round(fps, 1)), (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
 
-            counter = counter + 1
-            biggestAreaTemp = counter
+            # counter = counter + 1
+            # biggestAreaTemp = counter
             
             output_stream.putFrame(redmask)
             biggestArea.set(biggestAreaTemp)
