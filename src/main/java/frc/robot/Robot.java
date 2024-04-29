@@ -309,10 +309,12 @@ public class Robot extends TimedRobot {
    */
   private void closeGrip(boolean pressed, boolean released) {
     if (pressed) {
-      Arm.Gripper.set(Arm.GRIPPER_MAX);
+      // Arm.Gripper.set(Arm.GRIPPER_MAX);
+      Arm.Gripper.setAngle(180);
     }
     else if (released) {
-      Arm.Gripper.set(Arm.GRIPPER_MIN);
+      // Arm.Gripper.set(Arm.GRIPPER_MIN);
+      Arm.Gripper.setAngle(0);
     }
   }
 
@@ -558,7 +560,6 @@ public class Robot extends TimedRobot {
     double[] DESIRED = new double[] { 0, 0, 0, 0 };
 
     double GripperPosition = Arm.Gripper.get();
-
     printDB("Gripper Position", GripperPosition);
 
     Point center = cv.rectCenter(cv.biggestRed);
@@ -826,6 +827,15 @@ public class Robot extends TimedRobot {
     boolean SqPressed = PS4joystick.getSquareButtonPressed();
     boolean SqReleased = PS4joystick.getSquareButtonReleased();
     closeGrip(SqPressed, SqReleased);
+
+    double GripperPosition = Arm.Gripper.get();
+
+    double GripperAngle = Arm.Gripper.getAngle();
+
+    // System.out.println("----------------------------------------");
+    // System.out.printf("GripperPosition = %f \n", GripperPosition);
+    System.out.println("----------------------------------------");
+    System.out.printf("GripperAngle = %f \n", GripperAngle);
     
     // If no input, command everything to zero
     if (Vx == 0 & Vy == 0 & omega == 0) {
@@ -857,17 +867,21 @@ public class Robot extends TimedRobot {
   @Override
   public void testInit() {
     m_Timer.reset();
-    Arm.Gripper.set(Arm.GRIPPER_MIN);
+    Arm.Gripper.setAngle(180);
   }
 
   /** This function is called periodically during test mode. */
   @Override
   public void testPeriodic() {
 
-    double GripperPosition = Arm.Gripper.get();
+    double GripperAngle = Arm.Gripper.getAngle();
 
     System.out.println("----------------------------------------");
-    System.out.printf("GripperPosition = %f \n", GripperPosition);
+    System.out.printf("GripperAngle = %f \n", GripperAngle);
+
+    // boolean SqPressed = PS4joystick.getSquareButtonPressed();
+    // boolean SqReleased = PS4joystick.getSquareButtonReleased();
+    // closeGrip(SqPressed, SqReleased);
 
 
 

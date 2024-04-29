@@ -25,6 +25,7 @@ public class Vision {
 
     // static singleton vision class instance
     private static Vision instance = null;
+    private UsbCamera usbCamera;
     private static Constants C = new Constants();
     // Public Variables
     public int imgWidth;
@@ -192,20 +193,23 @@ public class Vision {
 
         // add USB camera, create server for SmartDashboard
         // http://roborio-6593-frc.local:1181/
-        UsbCamera usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
+
+        usbCamera = CameraServer.startAutomaticCapture("Main Camera", 0);
+
+        for (int i=0; i<10; ++i) {
+
         usbCamera.setResolution(imgWidth, imgHeight);
-        // usbCamera.setExposureAuto();
+        usbCamera.setExposureAuto();
         usbCamera.setWhiteBalanceManual(3300);
         usbCamera.setBrightness(60); // default 50
         usbCamera.getProperty("focus_auto").set(0);
-        usbCamera.getProperty("focus_absolute").set(0);
         usbCamera.getProperty("saturation").set(100);
-        usbCamera.getProperty("exposure_auto").set(1);
-        usbCamera.getProperty("exposure_auto_priority").set(0);
-        usbCamera.getProperty("exposure_absolute").set(4);
-        usbCamera.getProperty("gain").set(5);
         
-        
+
+        //usbCamera.setBrightness(75); // default 50
+        usbCamera.getProperty("brightness").set(75);
+
+        }
 
         CvSink cvSink = CameraServer.getVideo(); // grab images from camera
         CvSource outputStream = CameraServer.putVideo("Processed Image", imgWidth, imgHeight);
@@ -239,6 +243,8 @@ public class Vision {
             while (true) { /// TODO: change condition later
                 // System.out.println(usbCamera.getPath());
                 long startTime = System.currentTimeMillis();
+
+                // System.out.println(usbCamera.isConnected());
 
                 if (cvSink.grabFrame(sourceMat) != 0) {
 
