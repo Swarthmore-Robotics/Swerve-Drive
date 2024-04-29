@@ -102,8 +102,9 @@ public class Robot extends TimedRobot {
   DoubleSubscriber redYSub;
 
   enum autoStates {
-    findRed, 
+    findRed,
     findGreen,
+    findBlock,
     move,
     stopped,
     cool
@@ -580,235 +581,215 @@ public class Robot extends TimedRobot {
   @Override
   public void autonomousInit() {
     m_Timer.reset();
-    currState = autoStates.findRed;
-    colorOfInterest = Colors.none;
-  }
-
- // temp netword tables test, comment out eventually - ere
-  public void autonomousPeriodic() {
-    // Network Tables - ere
-    double redArea = redASub.get();
-    // double redX = redXSub.get();
-    // double redY = redYSub.get();
-
-    System.out.println(redArea);
+    currState = autoStates.findBlock;
+    colorOfInterest = Colors.red;
   }
 
   /** This function is called periodically during autonomous. */
   // @Override
-  // public void autonomousPeriodic() {
+  public void autonomousPeriodic() {
 
-  //   // Network Tables - ere
-  //   double redArea = redASub.get();
-  //   double redX = redXSub.get();
-  //   double redY = redYSub.get();
+    // Network Tables - ere
+    double redArea = redASub.get();
+    double redX = redXSub.get();
+    double redY = redYSub.get();
 
-  //   System.out.println(redArea);
+    System.out.println(redArea);
 
 
-  //   double[] current_rel = new double[] {
-  //       RM_Encoders.get(WHEEL_FL).getPosition(),
-  //       RM_Encoders.get(WHEEL_FR).getPosition(),
-  //       RM_Encoders.get(WHEEL_BR).getPosition(),
-  //       RM_Encoders.get(WHEEL_BL).getPosition()
-  //   };
+    double[] current_rel = new double[] {
+        RM_Encoders.get(WHEEL_FL).getPosition(),
+        RM_Encoders.get(WHEEL_FR).getPosition(),
+        RM_Encoders.get(WHEEL_BR).getPosition(),
+        RM_Encoders.get(WHEEL_BL).getPosition()
+    };
 
-  //   // Initialize empty arrays for RM and TM setPoint values to be used later by
-  //   // setReference
-  //   double[] desired_body = new double[] { 0.0, 0.0, 0.0, 0.0 };
-  //   double[] desired_rel1 = new double[] { 0.0, 0.0, 0.0, 0.0 };
-  //   double[] desired_translation = new double[] { 0.0, 0.0, 0.0, 0.0 };
-  //   double[] DESIRED = new double[] { 0, 0, 0, 0 };
+    // Initialize empty arrays for RM and TM setPoint values to be used later by
+    // setReference
+    double[] desired_body = new double[] { 0.0, 0.0, 0.0, 0.0 };
+    double[] desired_rel1 = new double[] { 0.0, 0.0, 0.0, 0.0 };
+    double[] desired_translation = new double[] { 0.0, 0.0, 0.0, 0.0 };
+    double[] DESIRED = new double[] { 0, 0, 0, 0 };
+    double setpoint = 0;
+    double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
-  //   Point center = cv.rectCenter(cv.biggestRed);
+    // ------------------------------------------------------------------------------------------ //
+    // ------------------------------------------------------------------------------------------ //
 
-  //   if (colorOfInterest == Colors.red) {
-  //     center = cv.rectCenter(cv.biggestRed);
-  //   }
-  //   else if (colorOfInterest == Colors.green) {
-  //     center = cv.rectCenter(cv.biggestGreen);
-  //   }
+    double centerx = (double) cv.imgWidth / 2;
+    double x = centerx;
+    double x_diff = 0;
 
-  //   double x = center.x;
-  //   double centerx = (double) cv.imgWidth / 2;
-  //   double x_diff = Math.abs(centerx - x);
-    
-  //   double setpoint = 0;
-  //   double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
+    switch (currState) {
 
-  //   switch (currState) {
+      case findBlock:
 
-  //     case findRed:
-  //       System.out.println("currState = findRed ------------------------");
-      
-  //       colorOfInterest = Colors.red;
-
-  //       // if nothing of (RED) color detected, keep spinning around until detected
-  //       if (cv.biggestRed.area() <= C.minSpinThresh) {
-  //         spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);
-  //       }
-  //       else {
-  //         currState = autoStates.move;
-  //       }
-  //     break;
-
-  //     case findGreen:
-  //       System.out.println("currState = findGreen ------------------------");
-        
-  //       colorOfInterest = Colors.green;
-
-  //       // if nothing of (GREEN) color detected, keep spinning around until detected
-  //       if (cv.biggestGreen.area() <= C.minSpinThresh) {
-  //         spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);
-  //       }
-  //       else {
-  //         currState = autoStates.move;
-  //       }
-  //     break;
-
-  //     case move:
-
-  //       System.out.println("currState = move ------------------------");
-  //       System.out.printf("colorOfInterest = %s ------------------------\n", colorOfInterest);
-  //       System.out.printf("area = %f ------------------------\n", area);
-      
+        switch(colorOfInterest) {
+          case red:
+            x = redX;
+            area = redArea;
+            break;
           
-  //       if (colorOfInterest == Colors.red) {
-  //         area = cv.biggestRed.area();
-  //       }
-  //       else if (colorOfInterest == Colors.green) {
-  //         area = cv.biggestGreen.area();
-  //       }
-        
-  //       // if not centered
-  //       if (x_diff >= C.centerThresh) {
-  //         System.out.println("INSIDE NOT CENTERED ----------------------\n");
-          
-  //         // Centering a red block if it enters into frame
-  //         DESIRED[0] = -45;
-  //         DESIRED[1] = 45;
-  //         DESIRED[2] = 135;
-  //         DESIRED[3] = 225;
+          case green:
+            // x = greenX;
+            // area = greenArea;
+            break;
 
-  //         setpoint = C.vision_kP * (centerx - x) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
-  //         for (int i = 0; i <=3; i++) {
-  //           if (i % 2 == 0) {
-  //             setpointArr[i] = -1 * setpoint;
-  //           }
-  //           else {
-  //             setpointArr[i] = setpoint;
-  //           }    
-  //         }
-  //       }
+          case yellow:
+            // x = yellowX;
+            // area = yellowArea;
+            break;
 
-  //       // if centered, move closer or farther away
-  //       else {
-
-  //         // if too far away, go closer
-  //         if (area <= C.minDistThresh) {
-  //           System.out.println("INSIDE TOO FAR ----------------------\n");
-
-  //           DESIRED[0] = 0;
-  //           DESIRED[1] = 0;
-  //           DESIRED[2] = 0;
-  //           DESIRED[3] = 0;
-
-  //           setpoint = 0.25 * (C.Trans_maxRPM / 6);
-  //           for (int i = 0; i <=3; i++) {
-  //             setpointArr[i] = setpoint;
-  //           }
+          default:
             
-  //         }
+            x_diff = Math.abs(centerx - x);
 
-  //         // if too close, go back
-  //         else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
-  //           System.out.println("INSIDE TOO CLOSE ----------------------\n");
+            if (area <= C.minSpinThresh) {
+              spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);              
+            }
+            else {
+              currState = autoStates.move;
+            }
+            break;
 
-  //           DESIRED[0] = 0;
-  //           DESIRED[1] = 0;
-  //           DESIRED[2] = 0;
-  //           DESIRED[3] = 0;
+        }
 
-  //           setpoint = -0.25 * (C.Trans_maxRPM / 6);
-  //           for (int i = 0; i <=3; i++) {
-  //             setpointArr[i] = setpoint;
-  //           }
+        break;
 
-  //         } 
+      case move:
 
-  //         // otherwise, ideal spot achieved
-  //         else {
-  //           System.out.println("IDEAL SPOT ACHIEVED ----------------------");
-
-  //           // red-following demo
-  //           stopMotors();
-  //           currState = autoStates.findRed;
-
-  //           // red-green loop demo
-  //           // currState = autoStates.findGreen;
-
-  //           // etc.
-  //         }
-          
-  //       }
-
-  //       apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
-
-  //       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-  //       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
-
-  //     break;
-
-  //     case stopped:
-
-  //       System.out.println("currState = stopped ------------------------");
-      
-  //       stopMotors();
-  //     break;
-      
-  //     case cool:
-
-  //       double time = m_Timer.get();
-
-  //       // Constants
-  //       double dist_x = 12.75;
-  //       double dist_y = 12.75;
-  //       double r = mag(dist_x, dist_y);
+        System.out.printf("colorOfInterest = %s ------------------------\n", colorOfInterest);
+        System.out.printf("area = %f ------------------------\n", area);
         
-  //       // assume omega = 0.1 rad/s
-  //       // at t=0, theta=0, robot should be moving in the [1, 0] direction
-  //       // at t=10*pi/2 seconds, theta=pi/2, robot should be moving in the [0, -1] direction
-  //       // at t=10*pi seconds, theta=pi, robot should be moving in the [-1, 0] direction 
-  //       double theta = time * cool_omega;
+        // if not centered
+        if (x_diff >= C.centerThresh) {
+          System.out.println("INSIDE NOT CENTERED ----------------------\n");
+          
+          // Centering a red block if it enters into frame
+          DESIRED[0] = -45;
+          DESIRED[1] = 45;
+          DESIRED[2] = 135;
+          DESIRED[3] = 225;
 
-  //       omega_auto = cool_omega;
+          setpoint = C.vision_kP * (centerx - x) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
+          for (int i = 0; i <=3; i++) {
+            if (i % 2 == 0) {
+              setpointArr[i] = -1 * setpoint;
+            }
+            else {
+              setpointArr[i] = setpoint;
+            }    
+          }
+        }
 
-  //       Vx_auto = Math.cos(theta) * cool_speed;
-  //       Vy_auto = -Math.sin(theta) * cool_speed;
+        // if centered, move closer or farther away
+        else {
 
-  //       // calculate the vector sum of joystick inputs to define each respective wheel module's 
-  //       // linear and angular velocities
-  //       double[] state = set_vectors(Vx_auto, Vy_auto, omega_auto, dist_x, dist_y, r);
+          // if too far away, go closer
+          if (area <= C.minDistThresh) {
+            System.out.println("INSIDE TOO FAR ----------------------\n");
 
-  //       // in case 2, each wheel is set to a distinct angle and speed
-  //       for (int j = 0; j <= 3; j++) {
-  //         DESIRED[j] = state[j];
-  //         setpointArr[j] = state[j + 4];
-  //       }
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
 
-  //       apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
+            setpoint = 0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
+            
+          }
 
-  //       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-  //       setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+          // if too close, go back
+          else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
+            System.out.println("INSIDE TOO CLOSE ----------------------\n");
 
-  //     break;
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
 
-  //     default:
-  //       break;
+            setpoint = -0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
 
-  //   }
+          } 
 
-  // }
+          // otherwise, ideal spot achieved
+          else {
+            System.out.println("IDEAL SPOT ACHIEVED ----------------------");
+
+            // red-following demo
+            stopMotors();
+            currState = autoStates.findRed;
+
+            // red-green loop demo
+            // currState = autoStates.findGreen;
+
+            // etc.
+          }
+          
+        }
+
+        apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
+
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
+      break;
+
+      case stopped:
+
+        System.out.println("currState = stopped ------------------------");
+      
+        stopMotors();
+      break;
+      
+      case cool:
+
+        double time = m_Timer.get();
+
+        // Constants
+        double dist_x = 12.75;
+        double dist_y = 12.75;
+        double r = mag(dist_x, dist_y);
+        
+        // assume omega = 0.1 rad/s
+        // at t=0, theta=0, robot should be moving in the [1, 0] direction
+        // at t=10*pi/2 seconds, theta=pi/2, robot should be moving in the [0, -1] direction
+        // at t=10*pi seconds, theta=pi, robot should be moving in the [-1, 0] direction 
+        double theta = time * cool_omega;
+
+        omega_auto = cool_omega;
+
+        Vx_auto = Math.cos(theta) * cool_speed;
+        Vy_auto = -Math.sin(theta) * cool_speed;
+
+        // calculate the vector sum of joystick inputs to define each respective wheel module's 
+        // linear and angular velocities
+        double[] state = set_vectors(Vx_auto, Vy_auto, omega_auto, dist_x, dist_y, r);
+
+        // in case 2, each wheel is set to a distinct angle and speed
+        for (int j = 0; j <= 3; j++) {
+          DESIRED[j] = state[j];
+          setpointArr[j] = state[j + 4];
+        }
+
+        apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
+
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+
+      break;
+
+      default:
+        break;
+
+    }
+
+  }
 
   /**
    * This function is called once each time the robot enters teleoperated mode.
