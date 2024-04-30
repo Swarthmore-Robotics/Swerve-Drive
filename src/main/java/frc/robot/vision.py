@@ -10,7 +10,7 @@ import ntcore
 configFile = "/boot/frc.json"
 WIDTH = 640
 HEIGHT = 480
-GB = (7, 7)
+GB = (11, 11)
 
 redlow = (0, 70, 50)
 redhigh = (10, 255, 255)
@@ -33,14 +33,14 @@ if __name__ == "__main__":
     nt.startClient4("rasp pi client")
     nt.setServerTeam(6593)
     nt.startDSClient()
-    nt.setServer("host", ntcore.NetworkTableInstance.kDefaultPort4)
+    # nt.setServer("host", ntcore.NetworkTableInstance.kDefaultPort4)
 
     # camera.getProperty("name").set(val)
     camera = CameraServer.startAutomaticCapture()
     camera.setResolution(WIDTH, HEIGHT)
     camera.setBrightness(60)
     camera.setWhiteBalanceManual(3300)
-    camera.setExposureManual(1)
+    camera.setExposureManual(2)
     camera.getProperty("contrast").set(50)
     camera.getProperty("saturation").set(80)
     camera.getProperty("focus_auto").set(0)
@@ -56,25 +56,35 @@ if __name__ == "__main__":
 
     img = np.zeros((WIDTH, HEIGHT, 3), dtype=np.uint8)
 
-    # counter = 0
-
-    redmin2 = (0, 100, 100)
-    redmax2 = (10, 255, 255)
+    counter = 0
 
     time.sleep(0.5)
 
     while True:
 
-        if(input_stream.grabFrame(img) != 0):
+        result, img = input_stream.grabFrame(img)
+
+        if(result != 0):
+
             start_time = time.time()
+
+            # print('image shape, min, max', img.shape, img.min(axis=(0,1)), img.max(axis=(0,1)))
 
             output_img = np.copy(img)
 
-            hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+            blur = cv2.GaussianBlur(img, GB, 0)
 
-            blur = cv2.GaussianBlur(hsv,GB,0)
+            hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
+            # hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+
 
             redmask1 = cv2.inRange(blur, redlow, redhigh)
+            # redmask = cv2.inRange(hsv, redlow, redhigh)
+
+            # print('redlow', redlow)
+            # print('redhi', redhigh)
+            # print('mask', redmask.min(), redmask.max(), redmask.sum())
+
             redmask2 = cv2.inRange(blur, redlow2, redhigh2)
 
             redmask = cv2.bitwise_or(redmask1, redmask2)
@@ -87,9 +97,10 @@ if __name__ == "__main__":
             biggestYTemp = 0.0
             biggestHTemp = 0.0
             biggestWTemp = 0.0
+            # print(len(contours))
             for c in contours:
                 x,y,w,h = cv2.boundingRect(c)
-                cv2.rectangle(image_o2,(x,y),(x+w,y+h),(0,255,0),2)
+                cv2.rectangle(output_img,(x,y),(x+w,y+h),(0,255,0),2)
                 a = w*h
                 centerx = x + (w/2)
                 centery = y + (h/2)
@@ -109,9 +120,12 @@ if __name__ == "__main__":
             # cv2.putText(output_img, str(round(fps, 1)), (0, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255))
 
             # counter = counter + 1
-            # biggestAreaTemp = counter
+            # biggestXTemp = counter
+
+            print(biggestAreaTemp)
+            print(biggestXTemp)
             
-            output_stream.putFrame(redmask)
+            # output_stream.putFrame(redmask)
             biggestArea.set(biggestAreaTemp)
             biggestX.set(biggestXTemp)
             biggestY.set(biggestYTemp)
