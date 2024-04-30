@@ -12,10 +12,10 @@ WIDTH = 640
 HEIGHT = 480
 GB = (11, 11)
 
-redlow = (0, 70, 50)
-redhigh = (10, 255, 255)
+redlow = (0, 70, 110)
+redhigh = (8, 255, 255)
 
-redlow2 = (160, 70, 50)
+redlow2 = (160, 70, 110)
 redhigh2 = (179, 255, 255)
 
 if __name__ == "__main__":
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     camera.getProperty("gain").set(50)
 
     input_stream = CameraServer.getVideo()
-    output_stream = CameraServer.putVideo("Processed", WIDTH, HEIGHT)
+    output_stream = CameraServer.putVideo("Processed RaspPi", WIDTH, HEIGHT)
 
     vision_nt = nt.getTable("Vision")
     biggestArea = vision_nt.getDoubleTopic("redA").publish()
@@ -75,17 +75,17 @@ if __name__ == "__main__":
             blur = cv2.GaussianBlur(img, GB, 0)
 
             hsv = cv2.cvtColor(blur, cv2.COLOR_BGR2HSV)
-            # hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
+            # hsv = cv2.cvtColor(blur, cv2.COLOR_RGB2HSV)
 
 
-            redmask1 = cv2.inRange(blur, redlow, redhigh)
+            redmask1 = cv2.inRange(hsv, redlow, redhigh)
             # redmask = cv2.inRange(hsv, redlow, redhigh)
 
             # print('redlow', redlow)
             # print('redhi', redhigh)
             # print('mask', redmask.min(), redmask.max(), redmask.sum())
 
-            redmask2 = cv2.inRange(blur, redlow2, redhigh2)
+            redmask2 = cv2.inRange(hsv, redlow2, redhigh2)
 
             redmask = cv2.bitwise_or(redmask1, redmask2)
 
@@ -97,10 +97,13 @@ if __name__ == "__main__":
             biggestYTemp = 0.0
             biggestHTemp = 0.0
             biggestWTemp = 0.0
+            tl = ()
+            br = ()
+            cent_coord = ()
             # print(len(contours))
             for c in contours:
                 x,y,w,h = cv2.boundingRect(c)
-                cv2.rectangle(output_img,(x,y),(x+w,y+h),(0,255,0),2)
+                # cv2.rectangle(output_img,(x,y),(x+w,y+h),(0,255,0),2)
                 a = w*h
                 centerx = x + (w/2)
                 centery = y + (h/2)
@@ -110,8 +113,15 @@ if __name__ == "__main__":
                     biggestYTemp = centery
                     biggestHTemp = h
                     biggestWTemp = w
+                    tl = (x, y)
+                    br = (x + w, y + h)
+                    cent_coord = (int(x + w/2), int(y + h/2))
             
-            # cv2.rectangle(output_img,(biggestX,biggestY),(biggestX+biggestW,biggestY+biggestH),(0,255,0),2)
+            if (len(tl) != 0 and  len(br) != 0 and len(cent_coord) != 0):
+                cv2.rectangle(output_img, tl, br,(0,255,0),2)
+                cv2.circle(output_img, cent_coord, 5, (255,0,0), -1)
+            # print(cent_coord)
+            # print(br)
 
             end_time = time.time()
 
@@ -125,10 +135,12 @@ if __name__ == "__main__":
             print(biggestAreaTemp)
             print(biggestXTemp)
             
-            # output_stream.putFrame(redmask)
+            output_stream.putFrame(output_img)
             biggestArea.set(biggestAreaTemp)
             biggestX.set(biggestXTemp)
             biggestY.set(biggestYTemp)
+
+            print(end_time - start_time)
             
 
 #   JSON format:

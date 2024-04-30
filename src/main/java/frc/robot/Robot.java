@@ -579,11 +579,8 @@ public class Robot extends TimedRobot {
     // Network Tables - ere
     double redArea = redASub.get();
     double redX = redXSub.get();
-    double redY = redYSub.get();
 
     System.out.printf("redArea = %s\n", redArea);
-    // System.out.printf("redX = %s\n", redX);
-
 
     double[] current_rel = new double[] {
         RM_Encoders.get(WHEEL_FL).getPosition(),
@@ -614,45 +611,39 @@ public class Robot extends TimedRobot {
       case findBlock:
 
         tempState = "findBlock";
-        // System.out.println("INSIDE findBlock");
 
-        // switch(colorOfInterest) {
-        //   case red:
-        //     x = redX;
-        //     area = redArea;
-        //     break;
+        switch(colorOfInterest) {
+          case red:
+            x = redX;
+            area = redArea;
+            break;
           
-        //   case green:
-        //     x = redX;
-        //     area = redArea;
-        //     // x = greenX;
-        //     // area = greenArea;
-        //     break;
+          case green:
+            x = redX;
+            area = redArea;
+            // x = greenX;
+            // area = greenArea;
+            break;
 
-        //   case yellow:
-        //     x = redX;
-        //     area = redArea;
-        //     // x = yellowX;
-        //     // area = yellowArea;
-        //     break;
+          case yellow:
+            x = redX;
+            area = redArea;
+            // x = yellowX;
+            // area = yellowArea;
+            break;
 
-        //   default:
-        //     break;
-        // }
+          default:
+            break;
+        }
 
-        // // System.out.println(x);
+        x_diff = Math.abs(centerx - x);
 
-        // x_diff = Math.abs(centerx - x);
-
-        // // System.out.printf("area", area);
-        // System.out.println(area);
-
-        // if (area <= C.minSpinThresh) {
-        //   spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);              
-        // }
-        // else {
-        //   currState = autoStates.stopped;
-        // }
+        if (area <= C.minSpinThresh) {
+          spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);              
+        }
+        else {
+          currState = autoStates.stopped;
+        }
 
         break;
 
@@ -804,7 +795,6 @@ public class Robot extends TimedRobot {
 
     }
 
-
   }
 
   /**
@@ -900,26 +890,10 @@ public class Robot extends TimedRobot {
   @Override
   public void testPeriodic() {
 
-    // double GripperAngle = Arm.Gripper.getAngle();
-
-    // System.out.println("----------------------------------------");
-    // System.out.printf("GripperAngle = %f \n", GripperAngle);
-
-    // // boolean SqPressed = PS4joystick.getSquareButtonPressed();
-    // // boolean SqReleased = PS4joystick.getSquareButtonReleased();
-    // // closeGrip(SqPressed, SqReleased);
-    m_Timer.start();
-    
-    double time = m_Timer.get();
-
     byte[] sendData = "".getBytes();
-
-    System.out.println(time);
 
     boolean SqPressed = PS4joystick.getSquareButtonPressed();
     boolean SqReleased = PS4joystick.getSquareButtonReleased();
-    // closeGrip(SqPressed, SqReleased);
-
 
     if (SqPressed) {
       sendData = "O".getBytes();
