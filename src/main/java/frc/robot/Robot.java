@@ -111,10 +111,14 @@ public class Robot extends TimedRobot {
   DoubleSubscriber redASub;
   DoubleSubscriber redXSub;
   DoubleSubscriber redYSub;
+  private final double centerx = 320;
+  private double x = 0;
+  private double x_diff = 0;
 
   enum autoStates {
     findBlock,
     move,
+    pickup,
     stopped,
     cool
   }
@@ -569,7 +573,6 @@ public class Robot extends TimedRobot {
     m_Timer.reset();
     currState = autoStates.findBlock;
     colorOfInterest = Colors.red;
-    // Arm.Gripper.set(Arm.GRIPPER_MIN);
   }
 
   /** This function is called periodically during autonomous. */
@@ -580,7 +583,7 @@ public class Robot extends TimedRobot {
     double redArea = redASub.get();
     double redX = redXSub.get();
 
-    System.out.printf("redArea = %s\n", redArea);
+    // System.out.printf("redArea = %s\n", redArea);
 
     double[] current_rel = new double[] {
         RM_Encoders.get(WHEEL_FL).getPosition(),
@@ -601,48 +604,45 @@ public class Robot extends TimedRobot {
     // double GripperPosition = Arm.Gripper.get();
     // printDB("Gripper Position", GripperPosition);
 
-    double centerx = 320;
-    double x = centerx;
-    double x_diff = 0;
-
     String tempState = "";
+
+    switch(colorOfInterest) {
+      case red:
+        x = redX;
+        area = redArea;
+        break;
+      
+      case green:
+        x = redX;
+        area = redArea;
+        // x = greenX;
+        // area = greenArea;
+        break;
+
+      case yellow:
+        x = redX;
+        area = redArea;
+        // x = yellowX;
+        // area = yellowArea;
+        break;
+
+      default:
+        break;
+    }
+
+    x_diff = Math.abs(centerx - x);
+
     switch (currState) {
 
       case findBlock:
 
         tempState = "findBlock";
 
-        switch(colorOfInterest) {
-          case red:
-            x = redX;
-            area = redArea;
-            break;
-          
-          case green:
-            x = redX;
-            area = redArea;
-            // x = greenX;
-            // area = greenArea;
-            break;
-
-          case yellow:
-            x = redX;
-            area = redArea;
-            // x = yellowX;
-            // area = yellowArea;
-            break;
-
-          default:
-            break;
-        }
-
-        x_diff = Math.abs(centerx - x);
-
         if (area <= C.minSpinThresh) {
           spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);              
         }
         else {
-          currState = autoStates.stopped;
+          currState = autoStates.move;
         }
 
         break;
@@ -651,12 +651,12 @@ public class Robot extends TimedRobot {
 
         tempState = "move";
 
-        System.out.printf("colorOfInterest = %s ------------------------\n", colorOfInterest);
-        System.out.printf("area = %f ------------------------\n", area);
+        // System.out.printf("colorOfInterest = %s ------------------------\n", colorOfInterest);
+        // System.out.printf("area = %f ------------------------\n", area);
         
         // if not centered
         if (x_diff >= C.centerThresh) {
-          System.out.println("INSIDE NOT CENTERED ----------------------\n");
+          // System.out.println("INSIDE NOT CENTERED ----------------------\n");
           
           // Centering a red block if it enters into frame
           DESIRED[0] = -45;
@@ -680,7 +680,7 @@ public class Robot extends TimedRobot {
 
           // if too far away, go closer
           if (area <= C.minDistThresh) {
-            System.out.println("INSIDE TOO FAR ----------------------\n");
+            // System.out.println("INSIDE TOO FAR ----------------------\n");
 
             DESIRED[0] = 0;
             DESIRED[1] = 0;
@@ -696,7 +696,7 @@ public class Robot extends TimedRobot {
 
           // if too close, go back
           else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
-            System.out.println("INSIDE TOO CLOSE ----------------------\n");
+            // System.out.println("INSIDE TOO CLOSE ----------------------\n");
 
             DESIRED[0] = 0;
             DESIRED[1] = 0;
@@ -722,16 +722,9 @@ public class Robot extends TimedRobot {
             // currState = autoStates.findGreen;
 
             // pick-up and transport demo
-            if (grip_flag == 0) {
-              // Arm.Gripper.set(Arm.GRIPPER_MAX);
-              grip_flag = 1;
-            }
-            else {
-              // Arm.Gripper.set(Arm.GRIPPER_MIN);
-              grip_flag = 0;
-            }
+            stopMotors();
+            currState = autoStates.pickup;
 
-            currState = autoStates.stopped;
           }
           
         }
@@ -742,6 +735,46 @@ public class Robot extends TimedRobot {
         setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
       break;
+
+      case pickup:
+        
+        byte[] sendData = "".getBytes();
+        byte[] receiveData = new byte[12];
+        double grip_timer;        
+        
+        grip_timer = m_Timer.get();
+        // System.out.println(Math.round(grip_timer));
+        System.out.println(grip_flag);
+
+        if (grip_flag == 0) {
+          
+          // sendData = "O".getBytes();
+      
+          m_Timer.start();
+
+        }
+
+        if (grip_flag == 1) {
+
+          // sendData = "C".getBytes();
+          
+          m_Timer.reset();
+
+        }
+
+        if (Math.round(grip_timer) % 6 == 5) {
+          if (grip_flag == 0) {
+            grip_flag = 1;
+          }
+          else {
+            grip_flag = 0;
+          }
+
+        }
+        
+        arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);
+
+        break;
 
       case stopped:
         tempState = "stopped";
