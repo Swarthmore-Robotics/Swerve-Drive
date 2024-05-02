@@ -583,7 +583,7 @@ public class Robot extends TimedRobot {
     double redArea = redASub.get();
     double redX = redXSub.get();
 
-    // System.out.printf("redArea = %s\n", redArea);
+    System.out.printf("redArea = %s\n", redArea);
 
     double[] current_rel = new double[] {
         RM_Encoders.get(WHEEL_FL).getPosition(),
@@ -740,39 +740,30 @@ public class Robot extends TimedRobot {
         
         byte[] sendData = "".getBytes();
         byte[] receiveData = new byte[12];
-        double grip_timer;        
+        double grip_timer = m_Timer.get();
+
+        arduino.read(4, receiveData.length, receiveData);
+
+        String str = new String(receiveData, 0, receiveData.length);
+
+        System.out.println("Received: " + str);
         
-        grip_timer = m_Timer.get();
-        // System.out.println(Math.round(grip_timer));
-        System.out.println(grip_flag);
-
-        if (grip_flag == 0) {
-          
-          // sendData = "O".getBytes();
-      
+        if (str.contains("NGripped")) {
+          // System.out.println("INSIDE");
+          sendData = "C".getBytes();
           m_Timer.start();
-
-        }
-
-        if (grip_flag == 1) {
-
-          // sendData = "C".getBytes();
           
-          m_Timer.reset();
-
         }
 
-        if (Math.round(grip_timer) % 6 == 5) {
-          if (grip_flag == 0) {
-            grip_flag = 1;
-          }
-          else {
-            grip_flag = 0;
-          }
-
+        if (str.contains("Gripped") && Math.round(grip_timer) % 6 == 3) {
+          sendData = "U".getBytes();
+          m_Timer.reset();
+          currState = autoStates.stopped;
+          
         }
         
         arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);
+
 
         break;
 
@@ -924,6 +915,7 @@ public class Robot extends TimedRobot {
   public void testPeriodic() {
 
     byte[] sendData = "".getBytes();
+    byte[] receiveData = new byte[12];
 
     boolean SqPressed = PS4joystick.getSquareButtonPressed();
     boolean SqReleased = PS4joystick.getSquareButtonReleased();
@@ -935,12 +927,18 @@ public class Robot extends TimedRobot {
       sendData = "C".getBytes();
     }
 
-    byte[] receiveData = new byte[12];
-
+    // System.out.println(receiveData);
     arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);
 
-    // System.out.println("Received: " + new String(receiveData, 0, receiveData.length));
+    System.out.println("Received: " + new String(receiveData, 0, receiveData.length));
 
+    // if (str.contains("Gripped")) {
+    //   sendData = "U".getBytes();
+    // }
+    // else {
+    //   sendData = "D".getBytes();
+    // }
+    // arduino.read(WHEEL_BR, WHEEL_BL, receiveData)
     
 
   }
