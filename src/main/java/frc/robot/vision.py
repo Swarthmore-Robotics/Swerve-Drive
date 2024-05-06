@@ -15,7 +15,7 @@ GB = (11, 11)
 redlow = (0, 70, 110)
 redhigh = (8, 255, 255)
 
-redlow2 = (160, 190, 120)
+redlow2 = (160, 145, 75)
 redhigh2 = (179, 255, 255)
 
 DEBUG = True

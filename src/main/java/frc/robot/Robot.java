@@ -679,62 +679,60 @@ public class Robot extends TimedRobot {
             }    
           }
         }
+
+        // if centered, move closer or farther away
         else {
-          currState = autoStates.stopped;
-        }
-        // // if centered, move closer or farther away
-        // else {
 
-        //   // if too far away, go closer
-        //   if (area <= C.minDistThresh) {
-        //     // System.out.println("INSIDE TOO FAR ----------------------\n");
+          // if too far away, go closer
+          if (area <= C.minDistThresh) {
+            // System.out.println("INSIDE TOO FAR ----------------------\n");
 
-        //     DESIRED[0] = 0;
-        //     DESIRED[1] = 0;
-        //     DESIRED[2] = 0;
-        //     DESIRED[3] = 0;
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
 
-        //     setpoint = 0.25 * (C.Trans_maxRPM / 6);
-        //     for (int i = 0; i <=3; i++) {
-        //       setpointArr[i] = setpoint;
-        //     }
+            setpoint = 0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
             
-        //   }
+          }
 
-        //   // if too close, go back
-        //   else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
-        //     // System.out.println("INSIDE TOO CLOSE ----------------------\n");
+          // if too close, go back
+          else if ((area > C.maxDistThresh) && x_diff < C.centerThresh) {
+            // System.out.println("INSIDE TOO CLOSE ----------------------\n");
 
-        //     DESIRED[0] = 0;
-        //     DESIRED[1] = 0;
-        //     DESIRED[2] = 0;
-        //     DESIRED[3] = 0;
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
 
-        //     setpoint = -0.25 * (C.Trans_maxRPM / 6);
-        //     for (int i = 0; i <=3; i++) {
-        //       setpointArr[i] = setpoint;
-        //     }
+            setpoint = -0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
 
-        //   } 
+          } 
 
-        //   // otherwise, ideal spot achieved
-        //   else {
-        //     System.out.println("IDEAL SPOT ACHIEVED ----------------------");
+          // otherwise, ideal spot achieved
+          else {
+            System.out.println("IDEAL SPOT ACHIEVED ----------------------");
 
-        //     // red-following demo
-        //     // stopMotors();
-        //     // currState = autoStates.findRed;
+            // red-following demo
+            // stopMotors();
+            // currState = autoStates.findBlock;
 
-        //     // red-green loop demo
-        //     // currState = autoStates.findGreen;
+            // red-green loop demo
+            // currState = autoStates.findGreen;
 
-        //     // pick-up and transport demo
-        //     stopMotors();
-        //     currState = autoStates.pickup;
+            // pick-up and transport demo
+            stopMotors();
+            currState = autoStates.pickup;
 
-        //   }
+          }
           
-        // }
+        }
 
         apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
 
@@ -756,17 +754,21 @@ public class Robot extends TimedRobot {
         System.out.println("Received: " + str);
         
         if (str.contains("NGripped")) {
+          // System.out.println("INSIDE");
           sendData = "C".getBytes();
           m_Timer.start();
+          
         }
 
-        if (str.contains("Gripped") && Math.round(grip_timer) % 3 == 2) {
+        if (str.contains("Gripped") && Math.round(grip_timer) % 6 == 3) {
           sendData = "U".getBytes();
           m_Timer.reset();
           currState = autoStates.stopped;
+          
         }
         
         arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);
+
 
         break;
 
@@ -862,14 +864,19 @@ public class Robot extends TimedRobot {
     double[] DESIRED = new double[] { 0.0, 0.0, 0.0, 0.0 };
     double[] setpointArr = new double[] { 0.0, 0.0, 0.0, 0.0 };
 
+    // Constants
+    double x = 12.75; // distance from chassis center to module (in) - x-component
+    double y = 12.75; // distance from chassis center to module (in) - y-component
+    double r = mag(x, y); // needed to make x,y dimensionless
+
     boolean SqPressed = PS4joystick.getSquareButtonPressed();
     boolean SqReleased = PS4joystick.getSquareButtonReleased();
     checkGrip(SqPressed, SqReleased);
 
-    // Constants
-    double r_length = 12.75; // distances from robot center to wheel center (inches)
-    double r_width = 12.75; 
-    double r_rad = mag(r_length, r_width); 
+    double GripperAngle = Arm.Gripper.getAngle();
+
+    System.out.println("----------------------------------------");
+    System.out.printf("GripperAngle = %f \n", GripperAngle);
     
     // If no input, command everything to zero
     if (Vx == 0 & Vy == 0 & omega == 0) {
@@ -878,7 +885,7 @@ public class Robot extends TimedRobot {
     else {
       // calculate the vector sum of joystick inputs to define each respective wheel module's 
       // linear and angular velocities
-      double[] state = set_vectors(Vx, Vy, omega, r_length, r_width, r_rad);
+      double[] state = set_vectors(Vx, Vy, omega, x, y, r);
 
       // store calculated wheel angles and speeds
       for (int i = 0; i <= 3; i++) {
@@ -891,8 +898,10 @@ public class Robot extends TimedRobot {
 
       // command wheel modules to the desired wheel angles and speeds
       setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
-      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);      
+      setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
+      
     }
+
   }
 
   /** This function is called once each time the robot enters test mode. */

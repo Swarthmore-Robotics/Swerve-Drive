@@ -76,8 +76,8 @@ public class Constants {
 
     public double minSpinThresh = 4000;
     public double centerThresh = 20;
-    public double minDistThresh = 75000;
-    public double maxDistThresh = 78000;
+    public double minDistThresh = 53000;
+    public double maxDistThresh = 58000;
 
     public double vision_kP = 0.0045;
 
