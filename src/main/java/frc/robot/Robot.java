@@ -123,6 +123,7 @@ public class Robot extends TimedRobot {
     move,
     pickup,
     dropoff,
+    transport,
     stopped,
     cool
   }
@@ -596,7 +597,7 @@ public class Robot extends TimedRobot {
     double yellowX = yellowXSub.get();
 
     printDB("redArea", redArea);
-    // printDB("yellowArea", yellowArea);
+    printDB("yellowArea", yellowArea);
     
     double GripperPosition = Arm.Gripper.get();
     printDB("Gripper Position", GripperPosition);
@@ -633,25 +634,33 @@ public class Robot extends TimedRobot {
       case red:
         x = redX;
         area = redArea;
+        printDB("colorOfInterest", "red");
         break;
       
       case green:
         x = redX;
         area = redArea;
-        // x = greenX;
-        // area = greenArea;
+        printDB("colorOfInterest", "green");
         break;
 
       case yellow:
         x = yellowX;
         area = yellowArea;
+        printDB("colorOfInterest", "yellow");
         break;
 
       default:
         break;
     }
 
-    x_diff = Math.abs(centerx - x);
+    if (colorOfInterest == Colors.yellow) {
+      x_diff = Math.abs(centerx - x - 180);
+    }
+    else {
+      x_diff = Math.abs(centerx - x);
+    }
+
+    printDB("x_diff", x_diff);
 
     switch (currState) {
 
@@ -663,7 +672,13 @@ public class Robot extends TimedRobot {
           spin(DESIRED, desired_body, desired_rel1, desired_translation, current_rel);              
         }
         else {
-          currState = autoStates.move;
+          if (colorOfInterest == Colors.yellow) {
+            currState = autoStates.transport;
+          }
+          else {
+            currState = autoStates.move;
+          }
+
         }
 
         break;
@@ -733,18 +748,17 @@ public class Robot extends TimedRobot {
             System.out.println("IDEAL SPOT ACHIEVED ----------------------");
 
             // red-following demo
-            stopMotors();
-            currState = autoStates.findBlock;
+            // stopMotors();
+            // currState = autoStates.findBlock;
 
             // pick-up and transport demo
-            // stopMotors();
-            // if (colorOfInterest == Colors.red) {
-            //   currState = autoStates.pickup;
-            // }
-            // else {
-            //   currState = autoStates.stopped;
-            // }
-
+            stopMotors();
+            if (colorOfInterest == Colors.red) {
+              currState = autoStates.pickup;
+            }
+            else {
+              currState = autoStates.transport;
+            }
 
           }
           
@@ -789,6 +803,78 @@ public class Robot extends TimedRobot {
         }
         
         arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);    
+
+      break;
+      
+      case transport:
+
+        // if not centered
+        if (x_diff >= C.centerThresh) {
+          // System.out.println("INSIDE NOT CENTERED ----------------------\n");
+          
+          // Centering a red block if it enters into frame
+          DESIRED[0] = -45;
+          DESIRED[1] = 45;
+          DESIRED[2] = 135;
+          DESIRED[3] = 225;
+
+          setpoint = C.vision_kP * (centerx - x - 180) * ((C.Trans_maxRPM / 6) / C.MAX_rad_s);
+          for (int i = 0; i <=3; i++) {
+            if (i % 2 == 0) {
+              setpointArr[i] = -1 * setpoint;
+            }
+            else {
+              setpointArr[i] = setpoint;
+            }    
+          }
+        }
+
+        // if centered, move closer or farther away
+        else {
+
+          // if too far away, go closer
+          if (area <= C.minyellowDistThresh) {
+            // System.out.println("INSIDE TOO FAR ----------------------\n");
+
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
+
+            setpoint = 0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
+            
+          }
+
+          // if too close, go back
+          else if (area > C.maxyellowDistThresh) {
+            // System.out.println("INSIDE TOO CLOSE ----------------------\n");
+
+            DESIRED[0] = 0;
+            DESIRED[1] = 0;
+            DESIRED[2] = 0;
+            DESIRED[3] = 0;
+
+            setpoint = -0.25 * (C.Trans_maxRPM / 6);
+            for (int i = 0; i <=3; i++) {
+              setpointArr[i] = setpoint;
+            }
+
+          } 
+
+          // otherwise, ideal spot achieved
+          else {
+            System.out.println("IDEAL SPOT ACHIEVED ----------------------");
+            currState = autoStates.dropoff;
+          }     
+        }   
+        
+        apply_offsets(desired_body, DESIRED, current_rel, desired_rel1, desired_translation);
+
+        setWheelState(RM_PIDControllers, desired_rel1, true, setpointArr);
+        setWheelState(TM_PIDControllers, desired_translation, false, setpointArr);
 
       break;
 
@@ -844,6 +930,7 @@ public class Robot extends TimedRobot {
     }
 
     printDB("STATE", tempState);
+    // System.out.println(tempState);
 
   }
 
@@ -944,10 +1031,10 @@ public class Robot extends TimedRobot {
     boolean SqReleased = PS4joystick.getSquareButtonReleased();
 
     if (SqPressed) {
-      sendData = "O".getBytes();
+      sendData = "D".getBytes();
     }
     else if (SqReleased){
-      sendData = "O".getBytes();
+      sendData = "D".getBytes();
     }
 
     arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);
