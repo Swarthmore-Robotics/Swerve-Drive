@@ -40,6 +40,7 @@ import edu.wpi.first.math.WPIMathJNI;
 import edu.wpi.first.util.WPIUtilJNI;
 import edu.wpi.first.util.CombinedRuntimeLoader;
 import java.io.IOException;
+import java.time.temporal.Temporal;
 
 import edu.wpi.first.wpilibj.I2C;
 
@@ -104,13 +105,15 @@ public class Robot extends TimedRobot {
   private double Vx_auto;
   private double Vy_auto;
   private double omega_auto;
-  private double grip_flag = 0;
 
   // Vision Variables
   private static Constants C = new Constants();
+
   DoubleSubscriber redASub;
   DoubleSubscriber redXSub;
-  DoubleSubscriber redYSub;
+  DoubleSubscriber yellowASub;
+  DoubleSubscriber yellowXSub;
+
   private final double centerx = 320;
   private double x = 0;
   private double x_diff = 0;
@@ -119,6 +122,7 @@ public class Robot extends TimedRobot {
     findBlock,
     move,
     pickup,
+    dropoff,
     stopped,
     cool
   }
@@ -483,8 +487,9 @@ public class Robot extends TimedRobot {
     NetworkTable table = inst.getTable("Vision");
     redASub = table.getDoubleTopic("redA").subscribe(-2.0);
     redXSub = table.getDoubleTopic("redX").subscribe(-1.0);
-    redYSub = table.getDoubleTopic("redY").subscribe(-1.0);
 
+    yellowASub = table.getDoubleTopic("yellowA").subscribe(-2.0);
+    yellowXSub = table.getDoubleTopic("yellowX").subscribe(-1.0);
   }
 
   /*
@@ -587,8 +592,14 @@ public class Robot extends TimedRobot {
     // Network Tables - ere
     double redArea = redASub.get();
     double redX = redXSub.get();
+    double yellowArea = yellowASub.get();
+    double yellowX = yellowXSub.get();
 
-    System.out.printf("redArea = %s\n", redArea);
+    printDB("redArea", redArea);
+    // printDB("yellowArea", yellowArea);
+    
+    double GripperPosition = Arm.Gripper.get();
+    printDB("Gripper Position", GripperPosition);
 
     double[] current_rel = new double[] {
         RM_Encoders.get(WHEEL_FL).getPosition(),
@@ -606,8 +617,15 @@ public class Robot extends TimedRobot {
     double setpoint = 0;
     double[] setpointArr = new double[] {setpoint, setpoint, setpoint, setpoint};
 
-    // double GripperPosition = Arm.Gripper.get();
-    // printDB("Gripper Position", GripperPosition);
+
+    byte[] sendData = "".getBytes();
+    byte[] receiveData = new byte[12];
+    double grip_timer = m_Timer.get();
+
+    arduino.read(4, receiveData.length, receiveData);
+
+    String str = new String(receiveData, 0, receiveData.length);
+    // System.out.println("Received: " + str);
 
     String tempState = "";
 
@@ -625,10 +643,8 @@ public class Robot extends TimedRobot {
         break;
 
       case yellow:
-        x = redX;
-        area = redArea;
-        // x = yellowX;
-        // area = yellowArea;
+        x = yellowX;
+        area = yellowArea;
         break;
 
       default:
@@ -655,9 +671,6 @@ public class Robot extends TimedRobot {
       case move:
 
         tempState = "move";
-
-        // System.out.printf("colorOfInterest = %s ------------------------\n", colorOfInterest);
-        // System.out.printf("area = %f ------------------------\n", area);
         
         // if not centered
         if (x_diff >= C.centerThresh) {
@@ -720,15 +733,18 @@ public class Robot extends TimedRobot {
             System.out.println("IDEAL SPOT ACHIEVED ----------------------");
 
             // red-following demo
-            // stopMotors();
-            // currState = autoStates.findBlock;
-
-            // red-green loop demo
-            // currState = autoStates.findGreen;
+            stopMotors();
+            currState = autoStates.findBlock;
 
             // pick-up and transport demo
-            stopMotors();
-            currState = autoStates.pickup;
+            // stopMotors();
+            // if (colorOfInterest == Colors.red) {
+            //   currState = autoStates.pickup;
+            // }
+            // else {
+            //   currState = autoStates.stopped;
+            // }
+
 
           }
           
@@ -741,36 +757,40 @@ public class Robot extends TimedRobot {
 
       break;
 
-      case pickup:
-        
-        byte[] sendData = "".getBytes();
-        byte[] receiveData = new byte[12];
-        double grip_timer = m_Timer.get();
-
-        arduino.read(4, receiveData.length, receiveData);
-
-        String str = new String(receiveData, 0, receiveData.length);
-
-        System.out.println("Received: " + str);
+      case pickup:        
         
         if (str.contains("NGripped")) {
-          // System.out.println("INSIDE");
           sendData = "C".getBytes();
           m_Timer.start();
           
         }
 
-        if (str.contains("Gripped") && Math.round(grip_timer) % 6 == 3) {
+        if (str.contains("Gripped") && Math.round(grip_timer) > 3) {
           sendData = "U".getBytes();
           m_Timer.reset();
-          currState = autoStates.stopped;
+          colorOfInterest = Colors.yellow;
+          currState = autoStates.findBlock;
           
         }
         
         arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);
 
+      break;
+      
+      case dropoff:
 
-        break;
+        sendData = "D".getBytes();
+        m_Timer.start();
+
+        if (Math.round(grip_timer) > 3) {
+          sendData = "O".getBytes();
+          m_Timer.reset();
+          currState = autoStates.stopped;
+        }
+        
+        arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);    
+
+      break;
 
       case stopped:
         tempState = "stopped";
@@ -819,10 +839,11 @@ public class Robot extends TimedRobot {
       break;
 
       default:
-        printDB("STATE", tempState);
         break;
 
     }
+
+    printDB("STATE", tempState);
 
   }
 
@@ -843,6 +864,8 @@ public class Robot extends TimedRobot {
         RM_Encoders.get(WHEEL_BR).getPosition(),
         RM_Encoders.get(WHEEL_BL).getPosition()
     };
+
+    printDB("current_rel", current_rel);
 
     // Obtain mapped and filtered joystick inputs
     double Vx = (-1) * highpassFilter(PS4joystick.getLeftY());
@@ -875,8 +898,7 @@ public class Robot extends TimedRobot {
 
     double GripperAngle = Arm.Gripper.getAngle();
 
-    System.out.println("----------------------------------------");
-    System.out.printf("GripperAngle = %f \n", GripperAngle);
+    printDB("GripperAngle", GripperAngle);
     
     // If no input, command everything to zero
     if (Vx == 0 & Vy == 0 & omega == 0) {
@@ -925,22 +947,12 @@ public class Robot extends TimedRobot {
       sendData = "O".getBytes();
     }
     else if (SqReleased){
-      sendData = "C".getBytes();
+      sendData = "O".getBytes();
     }
 
-    // System.out.println(receiveData);
     arduino.transaction(sendData, sendData.length, receiveData, receiveData.length);
 
     System.out.println("Received: " + new String(receiveData, 0, receiveData.length));
-
-    // if (str.contains("Gripped")) {
-    //   sendData = "U".getBytes();
-    // }
-    // else {
-    //   sendData = "D".getBytes();
-    // }
-    // arduino.read(WHEEL_BR, WHEEL_BL, receiveData)
-    
 
   }
 }

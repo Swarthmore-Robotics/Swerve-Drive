@@ -15,11 +15,13 @@ GB = (11, 11)
 redlow = (0, 70, 110)
 redhigh = (8, 255, 255)
 
-redlow2 = (160, 145, 75)
+redlow2 = (160, 190, 120)
 redhigh2 = (179, 255, 255)
 
-yellowlow = (22, 70, 110)
-yellowhigh = (35, 255, 255)
+# yellowlow = (22, 70, 110)
+# yellowhigh = (35, 255, 255)
+yellowlow = (15, 200, 200)
+yellowhigh = (30, 255, 255)
 
 biggestAreaRed = 0.0
 biggestXRed = 0.0
@@ -32,9 +34,8 @@ biggestYYellow = 0.0
 DEBUG = True
 THRESH = 15
 
-def getBiggestColor(mask, output_img):
+def getBiggestColor(mask, output_img, RY_flag):
     contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # cv2.drawContours(output_img, contours, -1, (0,255,0), 3)
 
     biggestArea = 0.0
     biggestX = 0.0
@@ -44,10 +45,9 @@ def getBiggestColor(mask, output_img):
     tl = ()
     br = ()
     cent_coord = ()
-    # print(len(contours))
+
     for c in contours:
         x,y,w,h = cv2.boundingRect(c)
-        # cv2.rectangle(output_img,(x,y),(x+w,y+h),(0,255,0),2)
         a = w*h
         centerx = x + (w/2)
         centery = y + (h/2)
@@ -62,10 +62,11 @@ def getBiggestColor(mask, output_img):
             cent_coord = (int(x + w/2), int(y + h/2))
     
     if (len(tl) != 0 and  len(br) != 0 and len(cent_coord) != 0):
-        cv2.rectangle(output_img, tl, br,(0,0,255),2)
+        
+        color = (0,0,255) if RY_flag else (0, 255, 255)
+
+        cv2.rectangle(output_img, tl, br,color,2)
         cv2.circle(output_img, cent_coord, 5, (255,0,0), -1)
-    # print(cent_coord)
-    # print(br)
 
     cv2.line(output_img, (WIDTH//2, 0), (WIDTH//2, HEIGHT), (255, 255, 255), 2)
     cv2.line(output_img, (WIDTH//2 + THRESH, 0), (WIDTH//2 + THRESH, HEIGHT), (255, 255, 255), 1)
@@ -117,10 +118,8 @@ def debugVision(input_stream, output_stream, img):
             # yellow threshold
             yellowmask = cv2.inRange(hsv, yellowlow, yellowhigh)
 
-            biggestAreaRedTemp, biggestXRedTemp, biggestYRedTemp, output_img = getBiggestColor(redmask, output_img)
-            biggestAreaYellowTemp, biggestXYellowTemp, biggestYYellowTemp, output_img = getBiggestColor(yellowmask, output_img)
-
-
+            biggestAreaRedTemp, biggestXRedTemp, biggestYRedTemp, output_img = getBiggestColor(redmask, output_img, 1)
+            biggestAreaYellowTemp, biggestXYellowTemp, biggestYYellowTemp, output_img = getBiggestColor(yellowmask, output_img, 0)
             
             output_stream.putFrame(output_img)
             biggestAreaRed.set(biggestAreaRedTemp)
@@ -137,7 +136,7 @@ def debugVision(input_stream, output_stream, img):
 
 
 if __name__ == "__main__":
-    global biggestAreaRed, biggestAreaYellow, biggestXRed, biggestXYellow, biggestYRed, biggestYYellow
+    
     # print(cv2.__version__)
     with open(configFile) as f:
         config = json.load(f)
